@@ -1,0 +1,570 @@
+import React, { useState } from 'react';
+import { useData } from '../../context/DataContext';
+import { useToast } from '../../context/ToastContext';
+import {
+  Receipt,
+  QrCode,
+  DollarSign,
+  CreditCard,
+  Building2,
+  TrendingUp,
+  PieChart,
+  CheckCircle2,
+  Clock,
+  Printer,
+  Plus,
+  BarChart2,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  FileText
+} from 'lucide-react';
+
+interface BillingFinanceModuleProps {
+  activeModule?: 'billing' | 'finance' | string;
+}
+
+export const BillingFinanceModule: React.FC<BillingFinanceModuleProps> = ({ activeModule = 'billing' }) => {
+  const { invoices = [], cashTransactions = [], addInvoice, processPayment, addCashTransaction } = useData();
+  const { addToast } = useToast();
+
+  const [activeTab, setActiveTab] = useState<'pos' | 'cashbook' | 'pl'>(
+    activeModule === 'finance' ? 'cashbook' : 'pos'
+  );
+
+  React.useEffect(() => {
+    if (activeModule === 'finance' && activeTab === 'pos') {
+      setActiveTab('cashbook');
+    } else if (activeModule === 'billing' && (activeTab === 'cashbook' || activeTab === 'pl')) {
+      setActiveTab('pos');
+    }
+  }, [activeModule]);
+  const [showQrisModal, setShowQrisModal] = useState(false);
+  const [selectedInvId, setSelectedInvId] = useState<string>('');
+  const [paymentMethod, setPaymentMethod] = useState<any>('QRIS');
+
+  // Simple new invoice state
+  const [custName, setCustName] = useState('Budi Santoso');
+  const [petName, setPetName] = useState('Mimi');
+  const [itemCategory, setItemCategory] = useState('Klinik');
+  const [itemName, setItemName] = useState('Pemeriksaan Umum & Resep Obat');
+  const [itemPrice, setItemPrice] = useState(150000);
+
+  // Cashbook entry form
+  const [cashType, setCashType] = useState<'In' | 'Out'>('Out');
+  const [cashCategory, setCashCategory] = useState('Operasional');
+  const [cashDescription, setCashDescription] = useState('Pembelian Alat Tulis & Pembersih Klinik');
+  const [cashAmount, setCashAmount] = useState(250000);
+
+  const selectedInvoice = invoices.find((i) => i.id === selectedInvId) || invoices[0];
+
+  const handleCreateInvoice = () => {
+    const inv = addInvoice({
+      customerId: 'c1',
+      customerName: custName,
+      petName,
+      items: [
+        {
+          id: 'item_' + Date.now(),
+          category: itemCategory,
+          name: itemName,
+          quantity: 1,
+          unitPrice: itemPrice,
+          totalPrice: itemPrice
+        }
+      ],
+      subtotal: itemPrice,
+      discountAmount: 0,
+      totalAmount: itemPrice,
+      paidAmount: 0,
+      paymentMethod: 'QRIS',
+      status: 'Belum Dibayar',
+      loyaltyPointsEarned: Math.floor(itemPrice / 10000),
+      cashierName: 'Kasir Utama'
+    });
+
+    addToast(`Invoice baru ${inv.invoiceNo} senilai Rp ${itemPrice.toLocaleString('id-ID')} dibuat.`, 'success');
+  };
+
+  const handleOpenPayment = (invId: string) => {
+    setSelectedInvId(invId);
+    setShowQrisModal(true);
+  };
+
+  const handleSimulateQRISPayment = () => {
+    if (!selectedInvId) return;
+    processPayment(selectedInvId, paymentMethod);
+    setShowQrisModal(false);
+    addToast(`Pembayaran Rp ${selectedInvoice?.totalAmount.toLocaleString('id-ID')} via ${paymentMethod} LUNAS!`, 'success');
+  };
+
+  const handleAddCashRecord = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cashDescription || cashAmount <= 0) {
+      addToast('Harap isi deskripsi dan nominal transaksi kas!', 'error');
+      return;
+    }
+
+    addCashTransaction({
+      date: new Date().toISOString().substring(0, 10),
+      type: cashType,
+      category: cashCategory,
+      description: cashDescription,
+      amount: cashAmount,
+      recordedBy: 'Manager Keuangan'
+    });
+
+    addToast(`Pencatatan Kas ${cashType === 'In' ? 'Masuk' : 'Keluar'} senilai Rp ${cashAmount.toLocaleString('id-ID')} berhasil disimpan.`, 'success');
+    setCashDescription('');
+    setCashAmount(100000);
+  };
+
+  // Profit & Loss calculation by Business Unit
+  const unitRevenue = {
+    Klinik: 8500000,
+    Grooming: 3200000,
+    'Pet Hotel': 4100000,
+    'Pet Shop': 6800000
+  };
+
+  const unitExpense = {
+    Klinik: 3100000,
+    Grooming: 1100000,
+    'Pet Hotel': 1400000,
+    'Pet Shop': 4500000
+  };
+
+  const totalRev = Object.values(unitRevenue).reduce((a, b) => a + b, 0);
+  const totalExp = Object.values(unitExpense).reduce((a, b) => a + b, 0);
+  const netProfit = totalRev - totalExp;
+
+  return (
+    <div className="space-y-6">
+      {/* Banner */}
+      <div className="bg-[#1B2A45] rounded-xl p-5 text-[#FFFDF9] border border-[#B8905A]/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div>
+          <span className="px-2.5 py-0.5 rounded-full bg-[#B8905A]/30 text-[#D9B98A] border border-[#B8905A]/40 text-[11px] font-semibold uppercase tracking-wider">
+            Kasir, Billing & Buku Kas Keuangan
+          </span>
+          <h2 className="text-xl font-bold mt-1 text-[#FFFDF9] font-display">
+            Point of Sales, Buku Kas Jurnal & Laporan Laba Rugi
+          </h2>
+          <p className="text-xs text-[#EDE6D6]/80 mt-0.5">
+            Proses transaksi gabungan klinik, pet shop & hotel dengan simulasi QRIS instan, pencatatan kas masuk/keluar, serta breakdown laba rugi per unit bisnis.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setActiveTab('pos')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'pos'
+                ? 'bg-[#B8905A] text-[#FFFDF9] shadow-2xs'
+                : 'bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/30 hover:bg-[#101A2C]/80'
+            }`}
+          >
+            <Receipt className="w-4 h-4" /> Billing & POS Kasir
+          </button>
+          <button
+            onClick={() => setActiveTab('cashbook')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'cashbook'
+                ? 'bg-[#B8905A] text-[#FFFDF9] shadow-2xs'
+                : 'bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/30 hover:bg-[#101A2C]/80'
+            }`}
+          >
+            <Wallet className="w-4 h-4" /> Buku Kas & Jurnal
+          </button>
+          <button
+            onClick={() => setActiveTab('pl')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'pl'
+                ? 'bg-[#B8905A] text-[#FFFDF9] shadow-2xs'
+                : 'bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/30 hover:bg-[#101A2C]/80'
+            }`}
+          >
+            <PieChart className="w-4 h-4" /> Laba / Rugi Per Unit
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'pos' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left 2 Cols: Invoices List */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-[#E1D6BE] pb-2">
+                <h3 className="font-bold text-sm text-[#1B2A45] font-display flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-[#B8905A]" /> Daftar Invoice & Status Pelunasan
+                </h3>
+              </div>
+
+              <div className="divide-y divide-[#E1D6BE]">
+                {invoices.map((inv) => (
+                  <div key={inv.id} className="py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[#1B2A45] text-sm">{inv.invoiceNo}</span>
+                        <span className="text-[#22242B] font-semibold">{inv.customerName}</span>
+                        {inv.petName && <span className="text-[10px] text-[#6B6656]">({inv.petName})</span>}
+                        <span
+                          className={`px-2 py-0.2 rounded text-[10px] font-bold ${
+                            inv.status === 'Lunas' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {inv.status}
+                        </span>
+                      </div>
+                      <p className="text-[#6B6656] text-[11px] mt-0.5">
+                        Tgl: {inv.date} | Total: <span className="font-bold text-[#1B2A45]">Rp {inv.totalAmount.toLocaleString('id-ID')}</span>
+                      </p>
+                    </div>
+
+                    {inv.status === 'Belum Dibayar' ? (
+                      <button
+                        onClick={() => handleOpenPayment(inv.id)}
+                        className="px-3.5 py-1.5 bg-[#B8905A] hover:bg-[#9E7848] text-[#FFFDF9] font-bold text-xs rounded-lg shadow-2xs flex items-center gap-1.5 transition-all shrink-0"
+                      >
+                        <QrCode className="w-3.5 h-3.5" /> Bayar QRIS / Kasir
+                      </button>
+                    ) : (
+                      <span className="text-emerald-700 font-bold text-xs flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4" /> Lunas ({inv.paymentMethod})
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Col: Quick Create Invoice */}
+          <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-3">
+            <h3 className="font-bold text-xs text-[#1B2A45] font-display uppercase tracking-wider border-b border-[#E1D6BE] pb-2">
+              Buat Invoice / Transaksi POS Baru
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Nama Pelanggan</label>
+                <input
+                  type="text"
+                  value={custName}
+                  onChange={(e) => setCustName(e.target.value)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Nama Pasien / Anabul</label>
+                <input
+                  type="text"
+                  value={petName}
+                  onChange={(e) => setPetName(e.target.value)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Kategori Layanan</label>
+                <select
+                  value={itemCategory}
+                  onChange={(e) => setItemCategory(e.target.value)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE] font-bold text-[#1B2A45]"
+                >
+                  <option value="Klinik">Klinik & Tindakan</option>
+                  <option value="Grooming">Grooming</option>
+                  <option value="Pet Hotel">Pet Hotel</option>
+                  <option value="Pet Shop">Pet Shop Product</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Nama Item / Layanan</label>
+                <input
+                  type="text"
+                  value={itemName}
+                  onChange={(e) => setItemName(e.target.value)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Total Biaya (Rp)</label>
+                <input
+                  type="number"
+                  value={itemPrice}
+                  onChange={(e) => setItemPrice(parseInt(e.target.value) || 0)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE] font-bold text-[#1B2A45]"
+                />
+              </div>
+
+              <button
+                onClick={handleCreateInvoice}
+                className="w-full py-2 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] font-bold text-xs rounded-lg shadow-2xs transition-all mt-2 flex items-center justify-center gap-1"
+              >
+                <Plus className="w-4 h-4 text-[#D9B98A]" /> Generasi Invoice Kasir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: CASHBOOK & PETTY CASH */}
+      {activeTab === 'cashbook' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-[#E1D6BE] pb-2">
+                <h3 className="font-bold text-sm text-[#1B2A45] font-display flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-[#B8905A]" /> Mutasi Jurnal Kas Masuk & Kas Keluar
+                </h3>
+                <span className="text-xs text-[#6B6656]">Total {cashTransactions.length} Transaksi Recorded</span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs text-[#22242B]">
+                  <thead className="bg-[#F6F1E6] text-[#1B2A45] font-bold uppercase text-[10px]">
+                    <tr>
+                      <th className="p-2.5">Tanggal</th>
+                      <th className="p-2.5">Tipe Jurnal</th>
+                      <th className="p-2.5">Kategori</th>
+                      <th className="p-2.5">Deskripsi Transaksi</th>
+                      <th className="p-2.5">Nominal (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E1D6BE]">
+                    {cashTransactions.map((tx) => (
+                      <tr key={tx.id}>
+                        <td className="p-2.5 font-mono text-[#6B6656]">{tx.date}</td>
+                        <td className="p-2.5">
+                          <span
+                            className={`px-2 py-0.5 rounded font-bold text-[10px] inline-flex items-center gap-1 ${
+                              tx.type === 'In' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                            }`}
+                          >
+                            {tx.type === 'In' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                            Kas {tx.type === 'In' ? 'Masuk' : 'Keluar'}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-semibold">{tx.category}</td>
+                        <td className="p-2.5">{tx.description}</td>
+                        <td
+                          className={`p-2.5 font-bold font-mono ${
+                            tx.type === 'In' ? 'text-emerald-700' : 'text-rose-700'
+                          }`}
+                        >
+                          {tx.type === 'In' ? '+' : '-'} Rp {tx.amount.toLocaleString('id-ID')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-3">
+            <h3 className="font-bold text-xs text-[#1B2A45] font-display uppercase tracking-wider border-b border-[#E1D6BE] pb-2">
+              Form Catat Mutasi Kas Kecil
+            </h3>
+
+            <form onSubmit={handleAddCashRecord} className="space-y-3 text-xs">
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Tipe Transaksi</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCashType('Out')}
+                    className={`py-2 rounded font-bold border transition-all ${
+                      cashType === 'Out' ? 'bg-rose-800 text-white border-rose-800' : 'bg-[#F6F1E6] text-[#22242B]'
+                    }`}
+                  >
+                    Kas Keluar (Beban)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCashType('In')}
+                    className={`py-2 rounded font-bold border transition-all ${
+                      cashType === 'In' ? 'bg-emerald-800 text-white border-emerald-800' : 'bg-[#F6F1E6] text-[#22242B]'
+                    }`}
+                  >
+                    Kas Masuk (Injeksi)
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Kategori Biaya</label>
+                <select
+                  value={cashCategory}
+                  onChange={(e) => setCashCategory(e.target.value)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE]"
+                >
+                  <option value="Operasional">Operasional & ATK</option>
+                  <option value="Listrik & Air">Listrik, Air & Internet</option>
+                  <option value="Maintenance">Maintenance Alat & AC</option>
+                  <option value="Makan Staf">Konsumsi & Dapur Staf</option>
+                  <option value="Lain-lain">Lain-lain</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Deskripsi Transaksi</label>
+                <input
+                  type="text"
+                  required
+                  value={cashDescription}
+                  onChange={(e) => setCashDescription(e.target.value)}
+                  placeholder="Deskripsi keperluan..."
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1B2A45] block mb-1">Nominal Transaksi (Rp)</label>
+                <input
+                  type="number"
+                  required
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(parseInt(e.target.value) || 0)}
+                  className="w-full p-2 bg-[#F6F1E6] rounded border border-[#E1D6BE] font-bold text-[#1B2A45]"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] font-bold text-xs rounded-lg shadow-2xs transition-all mt-2"
+              >
+                Simpan Mutasi Kas
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'pl' && (
+        <div className="space-y-5">
+          {/* Top KPI Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-[#FFFDF9] border border-[#E1D6BE] shadow-2xs">
+              <span className="text-[11px] font-bold text-[#6B6656] uppercase">Total Pendapatan (Omzet)</span>
+              <p className="text-xl font-bold text-emerald-700 mt-1">Rp {totalRev.toLocaleString('id-ID')}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#FFFDF9] border border-[#E1D6BE] shadow-2xs">
+              <span className="text-[11px] font-bold text-[#6B6656] uppercase">Total Beban Operasional</span>
+              <p className="text-xl font-bold text-rose-700 mt-1">Rp {totalExp.toLocaleString('id-ID')}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-[#1B2A45] text-[#FFFDF9] border border-[#B8905A]/30 shadow-2xs">
+              <span className="text-[11px] font-bold text-[#D9B98A] uppercase">Laba Bersih (Net Profit)</span>
+              <p className="text-xl font-bold text-[#FFFDF9] mt-1">Rp {netProfit.toLocaleString('id-ID')}</p>
+            </div>
+          </div>
+
+          {/* Business Unit Breakdown */}
+          <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-5 shadow-2xs space-y-4">
+            <h3 className="font-bold text-sm text-[#1B2A45] font-display border-b border-[#E1D6BE] pb-2 flex items-center gap-2">
+              <BarChart2 className="w-4 h-4 text-[#B8905A]" /> Breakdown Performa Laba Rugi Per Unit Bisnis
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Object.keys(unitRevenue).map((unit) => {
+                const rev = (unitRevenue as any)[unit];
+                const exp = (unitExpense as any)[unit];
+                const prof = rev - exp;
+
+                return (
+                  <div key={unit} className="p-4 rounded-xl bg-[#F6F1E6] border border-[#E1D6BE] space-y-2">
+                    <span className="text-xs font-bold text-[#1B2A45] uppercase tracking-wider block">{unit}</span>
+                    <div className="text-xs space-y-1 pt-1">
+                      <div className="flex justify-between">
+                        <span className="text-[#6B6656]">Pendapatan:</span>
+                        <span className="font-bold text-emerald-700">Rp {rev.toLocaleString('id-ID')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#6B6656]">Pengeluaran:</span>
+                        <span className="font-semibold text-rose-700">Rp {exp.toLocaleString('id-ID')}</span>
+                      </div>
+                      <div className="flex justify-between pt-2 border-t border-[#E1D6BE]">
+                        <span className="font-bold text-[#1B2A45]">Profit:</span>
+                        <span className="font-bold text-[#1B2A45]">Rp {prof.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QRIS Modal */}
+      {showQrisModal && selectedInvoice && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#FFFDF9] rounded-2xl border border-[#E1D6BE] p-6 space-y-5 shadow-2xl text-[#22242B]">
+            <div className="text-center border-b border-[#E1D6BE] pb-3">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#B8905A]/20 text-[#B8905A] text-[10px] font-bold uppercase">
+                Payment Gateway & Instan QRIS
+              </span>
+              <h3 className="text-lg font-bold text-[#1B2A45] font-display mt-1">
+                Pembayaran {selectedInvoice.invoiceNo}
+              </h3>
+              <p className="text-2xl font-extrabold text-[#1B2A45] mt-1">
+                Rp {selectedInvoice.totalAmount.toLocaleString('id-ID')}
+              </p>
+            </div>
+
+            {/* QR Code Container */}
+            <div className="bg-[#101A2C] p-4 rounded-xl text-center space-y-3 border border-[#B8905A]/30">
+              <div className="w-48 h-48 mx-auto bg-white p-3 rounded-lg flex items-center justify-center border-2 border-[#B8905A]">
+                {/* Dynamic QR SVG */}
+                <svg className="w-full h-full text-slate-900" viewBox="0 0 100 100">
+                  <path d="M 10 10 H 30 V 30 H 10 Z M 70 10 H 90 V 30 H 70 Z M 10 70 H 30 V 90 H 10 Z" fill="currentColor" />
+                  <path d="M 15 15 H 25 V 25 H 15 Z M 75 15 H 85 V 25 H 75 Z M 15 75 H 25 V 85 H 15 Z" fill="#1B2A45" />
+                  <rect x="40" y="40" width="20" height="20" fill="#B8905A" />
+                  <rect x="10" y="45" width="20" height="10" fill="currentColor" />
+                  <rect x="45" y="10" width="10" height="20" fill="currentColor" />
+                  <rect x="70" y="45" width="20" height="20" fill="currentColor" />
+                  <rect x="45" y="70" width="20" height="20" fill="currentColor" />
+                </svg>
+              </div>
+              <p className="text-[11px] text-[#EDE6D6]/80 font-mono">
+                Scan QRIS via GoPay, OVO, Dana, BCA, atau Mobile Banking
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-[#1B2A45] block mb-1">Pilih Metode Bayar</label>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                className="w-full text-xs p-2.5 rounded bg-[#F6F1E6] border border-[#E1D6BE] font-bold text-[#1B2A45]"
+              >
+                <option value="QRIS">QRIS Instan</option>
+                <option value="Tunai">Tunai / Cash</option>
+                <option value="Debit">Kartu Debit</option>
+                <option value="Kartu Kredit">Kartu Kredit</option>
+                <option value="Transfer Bank">Transfer Bank</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowQrisModal(false)}
+                className="w-1/2 py-2.5 bg-[#F6F1E6] hover:bg-[#E1D6BE]/50 text-[#1B2A45] font-bold text-xs rounded-lg transition-all border border-[#E1D6BE]"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSimulateQRISPayment}
+                className="w-1/2 py-2.5 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] font-bold text-xs rounded-lg shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4 text-[#D9B98A]" /> Konfirmasi Lunas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

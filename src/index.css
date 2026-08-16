@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand Colors */
+  --piki-navy-deep:    #1B2A45;  /* utama: sidebar, judul, tombol primer */
+  --piki-navy-darker:  #101A2C;  /* gradasi gelap, hover */
+  --piki-brass:        #B8905A; /* aksen utama */
+  --piki-brass-light:  #D9B98A; /* aksen terang di atas background gelap */
+  --piki-maroon:       #7A3030; /* aksen sekunder */
+
+  /* Surface */
+  --piki-parchment:    #F6F1E6; /* background kanvas */
+  --piki-card:         #FFFDF9; /* background panel/card/modal */
+
+  /* Text */
+  --piki-ink:          #22242B; /* teks utama */
+  --piki-slate:        #6B6656; /* teks sekunder / label */
+
+  /* Border */
+  --piki-hairline:     #E1D6BE;
+
+  /* Status */
+  --piki-success:      #4C7A5A; /* Aktif / Terkirim / Diterima */
+  --piki-warning:      #A8752C; /* Menunggu Verifikasi / Draf */
+  --piki-danger:       #7A3030; /* Non-Aktif / ditolak */
+  --piki-neutral:      #6B6656; /* status netral / arsip */
+
+  /* Status Pill Backgrounds (10-12% opacity) */
+  --piki-success-bg:   rgba(76,122,90,0.12);
+  --piki-warning-bg:   rgba(168,117,44,0.12);
+  --piki-danger-bg:    rgba(122,48,48,0.12);
+  --piki-neutral-bg:   rgba(107,102,86,0.12);
+
+  /* Typography */
+  --piki-font-display: 'Fraunces', serif;
+  --piki-font-body:    'Inter', sans-serif;
+  --piki-font-mono:    'IBM Plex Mono', monospace;
+
+  /* Legacy variable mappings for seamless theme transition */
+  --color-navy: #1B2A45;
+  --color-navy-hover: #101A2C;
+  --color-navy-dark: #101A2C;
+  --color-cream: #F6F1E6;
+  --color-cream-card: #FFFDF9;
+  --color-cream-hover: #EFE8D8;
+  --color-sage: #E1D6BE;
+  --color-sage-hover: #B8905A;
+  --color-sage-light: #F6F1E6;
+  --color-sage-dark: #22242B;
+}
+
+@layer base {
+  body {
+    background-color: var(--piki-parchment);
+    color: var(--piki-ink);
+    font-family: var(--piki-font-body);
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--piki-font-display);
+  }
+
+  .font-mono {
+    font-family: var(--piki-font-mono);
+  }
+}
+
+/* Custom Design Token Utility Classes */
+.bg-parchment { background-color: var(--piki-parchment); }
+.bg-piki-card { background-color: var(--piki-card); }
+.bg-navy-deep { background-color: var(--piki-navy-deep); }
+.bg-navy-darker { background-color: var(--piki-navy-darker); }
+.bg-brass { background-color: var(--piki-brass); }
+.bg-brass-light { background-color: var(--piki-brass-light); }
+.bg-maroon { background-color: var(--piki-maroon); }
+
+.text-ink { color: var(--piki-ink); }
+.text-slate-piki { color: var(--piki-slate); }
+.text-navy-deep { color: var(--piki-navy-deep); }
+.text-[#22242B] { color: var(--piki-ink); }
+.text-brass { color: var(--piki-brass); }
+.text-brass-light { color: var(--piki-brass-light); }
+
+.border-hairline { border-color: var(--piki-hairline); }
+.border-brass { border-color: var(--piki-brass); }
+
+/* Status Utilities */
+.pill-success {
+  background-color: var(--piki-success-bg);
+  color: var(--piki-success);
+}
+.pill-warning {
+  background-color: var(--piki-warning-bg);
+  color: var(--piki-warning);
+}
+.pill-danger {
+  background-color: var(--piki-danger-bg);
+  color: var(--piki-danger);
+}
+.pill-neutral {
+  background-color: var(--piki-neutral-bg);
+  color: var(--piki-neutral);
+}
+
+/* Legacy Utility Mappings */
+.bg-cream { background-color: var(--piki-parchment); }
+.bg-cream-card { background-color: var(--piki-card); }
+.bg-cream-muted { background-color: #EFE8D8; }
+
+.bg-navy { background-color: var(--piki-navy-deep); }
+.bg-navy-hover:hover { background-color: var(--piki-navy-darker); }
+.bg-navy-dark { background-color: var(--piki-navy-darker); }
+.text-navy { color: var(--piki-navy-deep); }
+.border-navy { border-color: var(--piki-navy-deep); }
+
+.bg-sage { background-color: var(--piki-hairline); }
+.bg-sage-light { background-color: var(--piki-parchment); }
+.text-sage-dark { color: var(--piki-ink); }
+.border-sage { border-color: var(--piki-hairline); }
+
+/* Print Optimizations for Quick Print & Invoices */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header, aside, .sidebar, nav, .print\\:hidden, [role="dialog"] > div > div:first-child {
+    display: none !important;
+  }
+
+  #printable-summary-document {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
