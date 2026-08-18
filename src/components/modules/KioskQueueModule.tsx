@@ -25,6 +25,7 @@ export const KioskQueueModule: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'kiosk' | 'notify'>('kiosk');
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
+  const [selectedQueuePatientId, setSelectedQueuePatientId] = useState<string>(clinicVisits[0]?.id || '');
 
   // Kiosk Search & Checkin state
   const [phoneSearch, setPhoneSearch] = useState('');
@@ -213,6 +214,38 @@ export const KioskQueueModule: React.FC = () => {
             <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
               Sistem Aktif (Live Queue)
             </span>
+          </div>
+
+          {/* Quick Dropdown Patient Queue Selector */}
+          <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#E1D6BE] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <label className="text-xs font-bold text-[#1B2A45] flex items-center gap-1.5 shrink-0">
+              <Clock className="w-3.5 h-3.5 text-[#B8905A]" /> Dropdown Antrean Pasien:
+            </label>
+            <div className="flex-1 max-w-lg">
+              <select
+                value={selectedQueuePatientId}
+                onChange={(e) => setSelectedQueuePatientId(e.target.value)}
+                className="w-full bg-white text-[#1B2A45] text-xs font-bold rounded-lg px-3 py-2 border border-[#E1D6BE] focus:outline-hidden focus:border-[#B8905A] shadow-2xs cursor-pointer"
+              >
+                {clinicVisits.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    Antrean #{v.queueNo}: {v.petName} ({v.petSpecies || 'Pasien'}) • {v.customerName} [Status: {v.status}]
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedQueuePatientId && (
+              <button
+                type="button"
+                onClick={() => {
+                  const visit = clinicVisits.find((v) => v.id === selectedQueuePatientId);
+                  if (visit) handleSendWANotify(visit);
+                }}
+                className="px-3.5 py-2 bg-[#B8905A] hover:bg-[#9E7848] text-[#FFFDF9] font-bold text-xs rounded-lg shadow-2xs flex items-center justify-center gap-1.5 transition-all shrink-0 cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-white" /> Kirim Reminder WA Pasien Ini
+              </button>
+            )}
           </div>
 
           <div className="divide-y divide-[#E1D6BE]">

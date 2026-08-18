@@ -142,20 +142,20 @@ interface DataContextType {
 
   // Care Plan, Telehealth, EForm, Ambulance
   carePlans: Types.CarePlan[];
-  addCarePlan: (cp: Omit<Types.CarePlan, 'id' | 'planNo'>) => void;
+  addCarePlan: (cp: Omit<Types.CarePlan, 'id' | 'planNo'>) => Types.CarePlan;
   toggleCarePlanTask: (planId: string, taskId: string) => void;
 
   telehealthSessions: Types.TelehealthSession[];
-  addTelehealthSession: (th: Omit<Types.TelehealthSession, 'id' | 'sessionNo' | 'meetingUrl'>) => void;
+  addTelehealthSession: (th: Omit<Types.TelehealthSession, 'id' | 'sessionNo' | 'meetingUrl'>) => Types.TelehealthSession;
   updateTelehealthStatus: (id: string, status: Types.TelehealthSession['status']) => void;
 
   eFormTemplates: Types.EFormTemplate[];
   eFormSubmissions: Types.EFormSubmission[];
-  addEFormSubmission: (efs: Omit<Types.EFormSubmission, 'id' | 'date'>) => void;
+  addEFormSubmission: (efs: Omit<Types.EFormSubmission, 'id' | 'date'>) => Types.EFormSubmission;
 
   ambulanceUnits: Types.AmbulanceUnit[];
   ambulanceRequests: Types.AmbulanceRequest[];
-  addAmbulanceRequest: (ar: Omit<Types.AmbulanceRequest, 'id' | 'requestNo' | 'requestedAt' | 'status'>) => void;
+  addAmbulanceRequest: (ar: Omit<Types.AmbulanceRequest, 'id' | 'requestNo' | 'requestedAt' | 'status'>) => Types.AmbulanceRequest;
   updateAmbulanceStatus: (id: string, status: Types.AmbulanceRequest['status'], unitCode?: string) => void;
 
   // Photos, Audit Logs, Notifications
@@ -1118,7 +1118,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setReminders((prev) => prev.filter((r) => r.id !== id));
   };
 
-  const addCarePlan = (cp: Omit<Types.CarePlan, 'id' | 'planNo'>) => {
+  const addCarePlan = (cp: Omit<Types.CarePlan, 'id' | 'planNo'>): Types.CarePlan => {
     const newPlan: Types.CarePlan = {
       ...cp,
       id: 'cp_' + Date.now(),
@@ -1126,6 +1126,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setCarePlans((prev) => [newPlan, ...prev]);
     addAuditLog('Tambah', 'Care Plan & Tindakan', newPlan.planNo, `Pembuatan rencana perawatan medis terpadu untuk pasien ${newPlan.petName}`);
+    return newPlan;
   };
 
   const toggleCarePlanTask = (planId: string, taskId: string) => {
@@ -1151,7 +1152,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const addTelehealthSession = (th: Omit<Types.TelehealthSession, 'id' | 'sessionNo' | 'meetingUrl'>) => {
+  const addTelehealthSession = (th: Omit<Types.TelehealthSession, 'id' | 'sessionNo' | 'meetingUrl'>): Types.TelehealthSession => {
     const newTh: Types.TelehealthSession = {
       ...th,
       id: 'th_' + Date.now(),
@@ -1160,6 +1161,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setTelehealthSessions((prev) => [newTh, ...prev]);
     addAuditLog('Tambah', 'Telehealth & Konsultasi', newTh.sessionNo, `Jadwal telekonsultasi baru untuk ${newTh.petName} dengan dokter ${newTh.doctorName}`);
+    return newTh;
   };
 
   const updateTelehealthStatus = (id: string, status: Types.TelehealthSession['status']) => {
@@ -1167,7 +1169,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     addAuditLog('Edit', 'Telehealth & Konsultasi', id, `Status telekonsultasi diubah menjadi: ${status}`);
   };
 
-  const addEFormSubmission = (efs: Omit<Types.EFormSubmission, 'id' | 'date'>) => {
+  const addEFormSubmission = (efs: Omit<Types.EFormSubmission, 'id' | 'date'>): Types.EFormSubmission => {
     const newSub: Types.EFormSubmission = {
       ...efs,
       id: 'efs_' + Date.now(),
@@ -1175,9 +1177,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setEFormSubmissions((prev) => [newSub, ...prev]);
     addAuditLog('Tambah', 'E-Form & Persetujuan Medis', newSub.templateTitle, `Penyerahan formulir digital ${newSub.templateTitle} untuk pasien ${newSub.petName} (Oleh: ${newSub.customerName})`, { severity: 'Warning' });
+    return newSub;
   };
 
-  const addAmbulanceRequest = (ar: Omit<Types.AmbulanceRequest, 'id' | 'requestNo' | 'requestedAt' | 'status'>) => {
+  const addAmbulanceRequest = (ar: Omit<Types.AmbulanceRequest, 'id' | 'requestNo' | 'requestedAt' | 'status'>): Types.AmbulanceRequest => {
     const newAr: Types.AmbulanceRequest = {
       ...ar,
       id: 'ar_' + Date.now(),
@@ -1187,6 +1190,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setAmbulanceRequests((prev) => [newAr, ...prev]);
     addAuditLog('Tambah', 'Ambulans Emergency', newAr.requestNo, `Permintaan penjemputan darurat ambulans untuk ${newAr.petName} (Urgensi: ${newAr.urgency})`, { severity: 'Warning' });
+    return newAr;
   };
 
   const updateAmbulanceStatus = (id: string, status: Types.AmbulanceRequest['status'], unitCode?: string) => {

@@ -25,8 +25,15 @@ import {
   ShoppingCart,
   Tag,
   Save,
-  Check
+  Check,
+  UserPlus,
+  UserX,
+  Zap,
+  Info,
+  Loader2,
+  BarChart3
 } from 'lucide-react';
+import { PetShopCategoryAnalytics } from '../petshop/PetShopCategoryAnalytics';
 
 interface CartItem {
   id: string;
@@ -51,16 +58,28 @@ interface PetShopDraft {
 }
 
 export const PetShopModule: React.FC = () => {
-  const { stockItems = [], customers = [], addInvoice, updateStockItem, adjustCustomerPoints } = useData();
+  const { stockItems = [], customers = [], addInvoice, updateStockItem, adjustCustomerPoints, addCustomer } = useData();
   const { addToast } = useToast();
+
+  // View state: 'pos' or 'analytics'
+  const [currentView, setCurrentView] = useState<'pos' | 'analytics'>('pos');
 
   // Filter & Search
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Guest / Walk-in Name state
+  const [guestName, setGuestName] = useState<string>('Pelanggan Umum (Walk-in)');
+
+  // Quick Register Member Modal State
+  const [showQuickRegisterModal, setShowQuickRegisterModal] = useState<boolean>(false);
+  const [newCustName, setNewCustName] = useState<string>('');
+  const [newCustPhone, setNewCustPhone] = useState<string>('');
+  const [newCustAddress, setNewCustAddress] = useState<string>('');
+
   // Draft state with local storage auto-save
   const defaultDraft: PetShopDraft = {
-    selectedCustomerId: customers[0]?.id || '',
+    selectedCustomerId: 'guest',
     cart: [],
     voucherCode: '',
     discountPercent: 0,
@@ -87,11 +106,57 @@ export const PetShopModule: React.FC = () => {
   const [paymentMethod, setPaymentMethod] = useState<'QRIS' | 'Tunai' | 'Kartu Debit' | 'Kartu Kredit' | 'Transfer'>('QRIS');
   const [cashPaid, setCashPaid] = useState<number>(0);
 
-  // Struk Modal
+  // Struk Modal & Auto-Print Simulation
   const [completedInvoice, setCompletedInvoice] = useState<any>(null);
   const [showStrukModal, setShowStrukModal] = useState(false);
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState<boolean>(true);
+  const [isSimulatingPrint, setIsSimulatingPrint] = useState<boolean>(false);
+  const [printStage, setPrintStage] = useState<'idle' | 'transmitting' | 'cutting' | 'done'>('idle');
 
-  const selectedCustomer = customers.find((c) => c.id === draft.selectedCustomerId) || customers[0];
+  // Trigger simulated thermal printing
+  const runSimulatedPrint = (invoiceNo: string) => {
+    setIsSimulatingPrint(true);
+    setPrintStage('transmitting');
+    setTimeout(() => {
+      setPrintStage('cutting');
+      setTimeout(() => {
+        setPrintStage('done');
+        setIsSimulatingPrint(false);
+        addToast(`Struk #${invoiceNo} berhasil dicetak via Auto-Print Thermal ESC/POS!`, 'success');
+      }, 1000);
+    }, 900);
+  };
+
+  // Guest Mode toggle state (Defaults to true for rapid frictionless transactions)
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(
+    draft.selectedCustomerId === 'guest' || !draft.selectedCustomerId
+  );
+
+  // Keep isGuestMode synced with draft changes
+  useEffect(() => {
+    if (draft.selectedCustomerId === 'guest' || !draft.selectedCustomerId) {
+      setIsGuestMode(true);
+    } else {
+      setIsGuestMode(false);
+    }
+  }, [draft.selectedCustomerId]);
+
+  const handleToggleGuestMode = (enabled: boolean) => {
+    setIsGuestMode(enabled);
+    if (enabled) {
+      updateDraft({ selectedCustomerId: 'guest', useLoyaltyPoints: false });
+      addToast('Mode Tamu (Guest Mode) Aktif: Lewati pemilihan member, transaksi anonim cepat siap.', 'info');
+    } else {
+      const defaultMemberId = customers[0]?.id || '';
+      updateDraft({ selectedCustomerId: defaultMemberId });
+      addToast('Mode Member Aktif: Profil member dipilih untuk poin & promo loyalitas.', 'info');
+    }
+  };
+
+  const isGuestCustomer = isGuestMode || draft.selectedCustomerId === 'guest' || !draft.selectedCustomerId;
+  const selectedCustomer = isGuestCustomer
+    ? null
+    : customers.find((c) => c.id === draft.selectedCustomerId) || null;
 
   // Categories list
   const categories = [
@@ -126,15 +191,15 @@ export const PetShopModule: React.FC = () => {
   // Voucher discount
   const voucherDiscount = (cartSubtotal * draft.discountPercent) / 100;
 
-  // Loyalty Point Discount (10 points = Rp 10.000 discount)
+  // Loyalty Point Discount (10 points = Rp 10.000 discount) - Only for registered members
   const availablePoints = selectedCustomer?.loyaltyPoints || 0;
-  const pointDiscountRupiah = draft.useLoyaltyPoints ? Math.min(availablePoints * 1000, cartSubtotal) : 0;
+  const pointDiscountRupiah = !isGuestCustomer && draft.useLoyaltyPoints ? Math.min(availablePoints * 1000, cartSubtotal) : 0;
 
   const totalDiscount = voucherDiscount + pointDiscountRupiah;
   const taxableAmount = Math.max(0, cartSubtotal - totalDiscount);
   const taxPPN = Math.round(taxableAmount * 0.11); // 11% PPN
   const grandTotal = taxableAmount + taxPPN;
-  const earnedPoints = Math.floor(grandTotal / 10000); // 1 point per 10k spent
+  const earnedPoints = isGuestCustomer ? 0 : Math.floor(grandTotal / 10000); // 1 point per 10k spent for members
 
   // Add item to cart
   const handleAddToCart = (product: any) => {
@@ -220,6 +285,28 @@ export const PetShopModule: React.FC = () => {
     }
   };
 
+  // Handle Quick Member Registration from POS
+  const handleQuickRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustName.trim()) {
+      addToast('Nama pelanggan wajib diisi.', 'error');
+      return;
+    }
+    const newCust = addCustomer({
+      name: newCustName.trim(),
+      phone: newCustPhone.trim() || '081234567890',
+      email: '',
+      address: newCustAddress.trim() || 'Alamat Pelanggan',
+      notes: 'Registrasi Cepat dari Kasir POS Pet Shop'
+    });
+    updateDraft({ selectedCustomerId: newCust.id });
+    setShowQuickRegisterModal(false);
+    setNewCustName('');
+    setNewCustPhone('');
+    setNewCustAddress('');
+    addToast(`Member baru "${newCust.name}" berhasil didaftarkan & dipilih di kasir!`, 'success');
+  };
+
   // Execute Checkout
   const handleCompleteSale = () => {
     if (draft.cart.length === 0) {
@@ -242,9 +329,13 @@ export const PetShopModule: React.FC = () => {
       totalPrice: item.price * item.quantity
     }));
 
+    const isGuest = isGuestCustomer;
+    const finalCustomerId = isGuest ? 'guest' : (selectedCustomer?.id || 'guest');
+    const finalCustomerName = isGuest ? (guestName.trim() || 'Pelanggan Umum (Walk-in)') : (selectedCustomer?.name || 'Pelanggan Umum');
+
     const newInvoice = addInvoice({
-      customerId: selectedCustomer?.id || 'c1',
-      customerName: selectedCustomer?.name || 'Pelanggan Ritel',
+      customerId: finalCustomerId,
+      customerName: finalCustomerName,
       items: invoiceItems,
       subtotal: cartSubtotal,
       discountAmount: totalDiscount,
@@ -252,7 +343,7 @@ export const PetShopModule: React.FC = () => {
       paidAmount: grandTotal,
       paymentMethod: paymentMethod,
       status: 'Lunas',
-      loyaltyPointsEarned: earnedPoints,
+      loyaltyPointsEarned: isGuest ? 0 : earnedPoints,
       cashierName: 'Kasir Pet Shop'
     });
 
@@ -267,7 +358,7 @@ export const PetShopModule: React.FC = () => {
     });
 
     // 3. Update Loyalty Points
-    if (selectedCustomer) {
+    if (!isGuest && selectedCustomer) {
       let pointsChange = earnedPoints;
       if (draft.useLoyaltyPoints && pointDiscountRupiah > 0) {
         const pointsRedeemed = Math.ceil(pointDiscountRupiah / 1000);
@@ -281,15 +372,21 @@ export const PetShopModule: React.FC = () => {
     // Reset draft
     clearDraft();
     setShowCheckoutModal(false);
-    setCompletedInvoice({
+    const invoicePayload = {
       ...newInvoice,
       cashPaid: paymentMethod === 'Tunai' ? cashPaid : grandTotal,
       changeAmount: paymentMethod === 'Tunai' ? Math.max(0, cashPaid - grandTotal) : 0,
       taxPPN
-    });
+    };
+    setCompletedInvoice(invoicePayload);
     setShowStrukModal(true);
 
-    addToast(`Transaksi POS #${newInvoice.invoiceNo} berhasil diselesaikan!`, 'success');
+    if (autoPrintEnabled) {
+      runSimulatedPrint(newInvoice.invoiceNo);
+    } else {
+      setPrintStage('idle');
+      addToast(`Transaksi POS #${newInvoice.invoiceNo} berhasil diselesaikan!`, 'success');
+    }
   };
 
   // Image placeholder mapping based on product category
@@ -335,44 +432,59 @@ export const PetShopModule: React.FC = () => {
         }
       />
 
-      {/* Auto-Save Draft Banner */}
-      <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] px-4 py-2.5 shadow-2xs flex items-center justify-between text-xs font-semibold text-[#1B2A45]">
-        <div className="flex items-center gap-2.5">
-          <div className={`p-1.5 rounded-lg ${isSaving ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-            <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
-          </div>
-          <div>
-            <p className="font-bold text-[#1B2A45]">
-              {isSaving ? 'Menyimpan draft keranjang kasir...' : 'Auto-Save Keranjang POS Aktif'}
-            </p>
-            <p className="text-[11px] text-[#6B6656] font-normal">
-              {lastSavedAt ? (
-                <>Pilihan barang & keranjang belanja tersimpan otomatis pukul <span className="font-bold text-emerald-800">{lastSavedAt}</span>.</>
-              ) : (
-                'Keranjang transaksi kasir tidak akan hilang jika halaman dimuat ulang.'
-              )}
-            </p>
-          </div>
+      {/* View Switcher Tabs (Kasir POS vs Analisis Kategori Recharts) */}
+      <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-1.5 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setCurrentView('pos')}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              currentView === 'pos'
+                ? 'bg-[#1B2A45] text-[#FFFDF9] shadow-xs font-black'
+                : 'text-[#1B2A45]/70 hover:text-[#1B2A45] hover:bg-[#F6F1E6]'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Kasir POS & Katalog Produk</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCurrentView('analytics')}
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              currentView === 'analytics'
+                ? 'bg-[#B8905A] text-[#101A2C] shadow-xs font-black'
+                : 'text-[#1B2A45]/70 hover:text-[#1B2A45] hover:bg-[#F6F1E6]'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Visualisasi Penjualan Kategori (Recharts)</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-400 text-slate-900 font-extrabold uppercase ml-0.5">
+              Chart
+            </span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {hasRestoredDraft && (
-            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300">
-              Draft Dimuat
+        {/* Quick Cart Status & Actions in POS view */}
+        {currentView === 'pos' && draft.cart.length > 0 && (
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <span className="text-xs text-[#6B6656]">
+              {draft.cart.length} barang di keranjang
             </span>
-          )}
-          {draft.cart.length > 0 && (
             <button
               onClick={discardDraft}
-              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1"
+              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" /> Kosongkan Keranjang
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {currentView === 'analytics' ? (
+        <PetShopCategoryAnalytics onBackToPOS={() => setCurrentView('pos')} />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: Product Catalog & Search */}
         <div className="lg:col-span-2 space-y-4">
           {/* Search & Category Filter */}
@@ -403,6 +515,47 @@ export const PetShopModule: React.FC = () => {
                     {cat}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Quick Guest Mode POS Status Banner */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#E1D6BE]/70 text-xs">
+              <div className="flex items-center gap-2">
+                <div className={`p-1 rounded-md ${isGuestMode ? 'bg-emerald-100 text-emerald-800' : 'bg-[#E1D6BE]/40 text-[#6B6656]'}`}>
+                  <UserX className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="font-bold text-[#1B2A45] text-xs">Mode Tamu (Guest Mode)</span>
+                  <span className="text-[10px] text-[#6B6656] ml-2 hidden sm:inline">
+                    {isGuestMode
+                      ? '• Tanpa pilih profil pelanggan, 1-klik Quick-Add barang ke keranjang kasir'
+                      : '• Mode Member Aktif (Poin loyalitas & profil pelanggan digunakan)'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  isGuestMode
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-[#F6F1E6] text-[#6B6656] border border-[#E1D6BE]'
+                }`}>
+                  {isGuestMode ? '🟢 Guest Mode ON' : '⚪ Member Mode'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleGuestMode(!isGuestMode)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    isGuestMode ? 'bg-emerald-600' : 'bg-slate-300'
+                  }`}
+                  aria-label="Toggle Guest Mode"
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      isGuestMode ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </div>
@@ -521,8 +674,8 @@ export const PetShopModule: React.FC = () => {
         {/* Right Col: Shopping Cart Sidebar */}
         <div className="space-y-4">
           <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-4">
-            {/* Header & Customer Select */}
-            <div className="border-b border-[#E1D6BE] pb-3 space-y-2">
+            {/* Header & Guest Mode / Customer Control */}
+            <div className="border-b border-[#E1D6BE] pb-3 space-y-2.5">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-sm text-[#1B2A45] font-display flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4 text-[#B8905A]" /> Keranjang Kasir POS
@@ -530,25 +683,109 @@ export const PetShopModule: React.FC = () => {
                 <span className="text-xs text-[#6B6656] font-medium">{draft.cart.length} Jenis</span>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold text-[#1B2A45] block mb-1">
-                  Pelanggan / Member Terdaftar
-                </label>
-                <select
-                  value={draft.selectedCustomerId}
-                  onChange={(e) => updateDraft({ selectedCustomerId: e.target.value })}
-                  className="w-full text-xs p-2 bg-[#F6F1E6] rounded-lg border border-[#E1D6BE] font-bold text-[#1B2A45]"
-                >
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.phone}) - {c.loyaltyPoints} Poin
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-[#6B6656]">
-                  <span>Member Loyalty: <strong className="text-[#B8905A] font-bold">{selectedCustomer?.loyaltyPoints || 0} Poin</strong></span>
-                  <span>Estimasi Poin Transaksi: <strong className="text-emerald-700 font-bold">+{earnedPoints} Poin</strong></span>
+              {/* Dedicated Guest Mode Toggle Card */}
+              <div
+                className={`p-2.5 rounded-xl border transition-all ${
+                  isGuestMode
+                    ? 'bg-emerald-50/80 border-emerald-300'
+                    : 'bg-[#F6F1E6] border-[#E1D6BE]'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 rounded-md ${isGuestMode ? 'bg-emerald-200/70 text-emerald-800' : 'bg-[#E1D6BE]/60 text-[#6B6656]'}`}>
+                      <UserX className="w-3.5 h-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#1B2A45]">Mode Tamu (Guest Mode)</p>
+                      <p className="text-[10px] text-[#6B6656]">
+                        {isGuestMode ? 'Tanpa pilih profil pelanggan • Quick-Add aktif' : 'Mode Member (Poin loyalitas aktif)'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleGuestMode(!isGuestMode)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                      isGuestMode ? 'bg-emerald-600' : 'bg-slate-300'
+                    }`}
+                    aria-label="Toggle Guest Mode"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        isGuestMode ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
+
+                {isGuestMode ? (
+                  <div className="mt-2.5 pt-2 border-t border-emerald-200/70 space-y-2">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] font-bold text-emerald-950">
+                          Nama di Struk Kasir:
+                        </label>
+                        <span className="text-[9px] text-emerald-700 font-medium">Opsional</span>
+                      </div>
+                      <input
+                        type="text"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        placeholder="Pelanggan Umum (Walk-in)"
+                        className="w-full text-xs px-2.5 py-1.5 bg-white rounded-lg border border-emerald-300 text-[#1B2A45] font-medium focus:outline-hidden focus:border-emerald-600 shadow-2xs"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-emerald-800">
+                      <span className="flex items-center gap-1 font-semibold">
+                        <Zap className="w-3 h-3 text-emerald-600" />
+                        Quick-Add langsung ke kasir
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowQuickRegisterModal(true)}
+                        className="text-[10px] font-bold text-[#B8905A] hover:underline"
+                      >
+                        + Daftar Member
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2.5 pt-2 border-t border-[#E1D6BE] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-[#1B2A45]">
+                        Pilih Profil Member:
+                      </label>
+                      <button
+                        onClick={() => setShowQuickRegisterModal(true)}
+                        className="text-[10px] font-bold text-[#B8905A] hover:text-[#9E7848] flex items-center gap-1 hover:underline"
+                      >
+                        <UserPlus className="w-3 h-3" /> + Member Baru
+                      </button>
+                    </div>
+
+                    <select
+                      value={draft.selectedCustomerId}
+                      onChange={(e) => updateDraft({ selectedCustomerId: e.target.value })}
+                      className="w-full text-xs p-2 bg-white rounded-lg border border-[#E1D6BE] font-bold text-[#1B2A45] focus:outline-hidden focus:border-[#B8905A]"
+                    >
+                      {customers.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.phone}) - {c.loyaltyPoints} Poin
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex items-center justify-between text-[10px] text-[#6B6656]">
+                      <span>
+                        Member Loyalty: <strong className="text-[#B8905A] font-bold">{selectedCustomer?.loyaltyPoints || 0} Poin</strong>
+                      </span>
+                      <span>
+                        Estimasi Poin: <strong className="text-emerald-700 font-bold">+{earnedPoints} Poin</strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -687,6 +924,7 @@ export const PetShopModule: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Checkout Modal */}
       {showCheckoutModal && (
@@ -710,7 +948,9 @@ export const PetShopModule: React.FC = () => {
                 <p className="text-xl font-extrabold text-[#FFFDF9]">
                   Rp {grandTotal.toLocaleString('id-ID')}
                 </p>
-                <p className="text-[10px] text-[#EDE6D6]/80">Pelanggan: {selectedCustomer?.name}</p>
+                <p className="text-[10px] text-[#EDE6D6]/80">
+                  Pelanggan: {isGuestCustomer ? (guestName.trim() || 'Pelanggan Umum (Walk-in)') : selectedCustomer?.name}
+                </p>
               </div>
 
               <div>
@@ -777,11 +1017,41 @@ export const PetShopModule: React.FC = () => {
                 </div>
               )}
 
+              {/* Auto-Print Thermal Receipt Toggle */}
+              <div className="p-2.5 bg-[#F6F1E6] rounded-xl border border-[#E1D6BE] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${autoPrintEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                    <Printer className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-[#1B2A45]">Auto-Print Struk Kasir</p>
+                    <p className="text-[10px] text-[#6B6656]">Cetak otomatis ke Thermal Printer saat pembayaran sukses</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAutoPrintEnabled(!autoPrintEnabled)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                    autoPrintEnabled ? 'bg-emerald-600' : 'bg-slate-300'
+                  }`}
+                  aria-label="Toggle Auto-Print Struk"
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      autoPrintEnabled ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
               <button
                 onClick={handleCompleteSale}
-                className="w-full py-3 bg-[#B8905A] hover:bg-[#9E7848] text-[#FFFDF9] font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#B8905A] hover:bg-[#9E7848] text-[#FFFDF9] font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4" /> Selesaikan Transaksi & Cetak Struk
+                <CheckCircle2 className="w-4 h-4" />
+                <span>
+                  {autoPrintEnabled ? 'Selesaikan Transaksi & Auto-Print Struk' : 'Selesaikan Transaksi Kasir'}
+                </span>
               </button>
             </div>
           </div>
@@ -791,7 +1061,35 @@ export const PetShopModule: React.FC = () => {
       {/* Struk Kasir Thermal Modal */}
       {showStrukModal && completedInvoice && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="max-w-sm w-full bg-white rounded-2xl p-5 shadow-2xl text-slate-900 font-mono text-xs space-y-3">
+          <div className="max-w-sm w-full bg-white rounded-2xl p-5 shadow-2xl text-slate-900 font-mono text-xs space-y-3 relative overflow-hidden">
+            {/* Auto-Print Simulation Banner */}
+            {isSimulatingPrint ? (
+              <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-amber-900 font-sans space-y-2 animate-pulse">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 text-amber-700 animate-spin" />
+                    {printStage === 'transmitting' ? 'Mengirim Data ke Thermal Printer 80mm...' : 'Memotong Kertas Struk (Auto-Cutter)...'}
+                  </span>
+                  <span className="text-[10px] bg-amber-200 px-1.5 py-0.5 rounded font-mono font-bold">ESC/POS</span>
+                </div>
+                <div className="w-full bg-amber-200 h-1.5 rounded-full overflow-hidden">
+                  <div className={`bg-amber-600 h-full transition-all duration-700 ${printStage === 'transmitting' ? 'w-1/2' : 'w-full'}`} />
+                </div>
+              </div>
+            ) : printStage === 'done' || autoPrintEnabled ? (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 text-emerald-900 font-sans flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div>
+                    <p className="font-bold text-[11px] leading-tight">Auto-Print Berhasil</p>
+                    <p className="text-[10px] text-emerald-700">Struk thermal telah dicetak otomatis</p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-800 text-[10px] font-bold">Thermal OK</span>
+              </div>
+            ) : null}
+
+            {/* Paper Feed Receipt Simulation Header */}
             <div className="text-center space-y-1 border-b border-dashed border-slate-300 pb-3">
               <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-900 font-sans">PETCARE ANIMAL CLINIC & SHOP</h3>
               <p className="text-[10px] text-slate-500 font-sans">Jl. Petcare Utama No. 88, Jakarta • Telp: (021) 555-8899</p>
@@ -838,27 +1136,126 @@ export const PetShopModule: React.FC = () => {
 
             <div className="text-center pt-2 border-t border-dashed border-slate-300 space-y-1 text-[9px] text-slate-500 font-sans">
               <p className="font-bold">Terima kasih atas kunjungan Anda!</p>
-              <p>Poin Loyalty Diterima: +{completedInvoice.loyaltyPointsEarned} Poin</p>
+              {completedInvoice.loyaltyPointsEarned > 0 ? (
+                <p className="text-emerald-700 font-bold">Poin Loyalty Diterima: +{completedInvoice.loyaltyPointsEarned} Poin</p>
+              ) : (
+                <p>Status: Pembeli Umum (Non-Member)</p>
+              )}
               <p>Barang yang sudah dibeli tidak dapat ditukar.</p>
             </div>
 
-            <div className="pt-2 flex justify-end gap-2 font-sans">
+            <div className="pt-2 flex items-center justify-between gap-2 font-sans">
               <button
                 onClick={() => setShowStrukModal(false)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg"
+                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
               >
-                Tutup
+                Selesai & Tutup
               </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => runSimulatedPrint(completedInvoice.invoiceNo)}
+                  disabled={isSimulatingPrint}
+                  className="px-3 py-1.5 bg-[#E1D6BE]/50 hover:bg-[#E1D6BE] text-[#1B2A45] text-xs font-bold rounded-lg flex items-center gap-1 cursor-pointer transition-colors border border-[#E1D6BE]"
+                  title="Simulasikan cetak ulang ke Thermal Printer"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#B8905A]" />
+                  <span>Cetak Ulang</span>
+                </button>
+                <button
+                  onClick={() => {
+                    window.print();
+                    addToast('Mencetak struk kasir thermal via browser dialog...', 'info');
+                  }}
+                  className="px-3 py-1.5 bg-[#1B2A45] hover:bg-[#101A2C] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  title="Cetak via dialog sistem browser"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#D9B98A]" />
+                  <span>Print Browser</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Member Registration Modal */}
+      {showQuickRegisterModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#FFFDF9] rounded-2xl border border-[#E1D6BE] p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E1D6BE] pb-3">
+              <h3 className="font-bold text-base text-[#1B2A45] font-display flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-[#B8905A]" /> Registrasi Member Baru Cepat (POS)
+              </h3>
               <button
-                onClick={() => {
-                  window.print();
-                  addToast('Mencetak struk kasir thermal...', 'info');
-                }}
-                className="px-4 py-1.5 bg-[#1B2A45] hover:bg-[#101A2C] text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
+                onClick={() => setShowQuickRegisterModal(false)}
+                className="text-xs font-bold text-[#6B6656] hover:bg-[#E1D6BE]/40 px-2 py-1 rounded-lg"
               >
-                <Printer className="w-3.5 h-3.5 text-[#D9B98A]" /> Cetak Struk
+                <X className="w-4 h-4" />
               </button>
             </div>
+
+            <form onSubmit={handleQuickRegister} className="space-y-3 text-xs">
+              <p className="text-[11px] text-[#6B6656]">
+                Daftarkan pembeli agar langsung mendapatkan poin loyalty dan promo khusus member pada transaksi ini.
+              </p>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#1B2A45] block">
+                  Nama Lengkap Pemilik <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Budi Santoso"
+                  value={newCustName}
+                  onChange={(e) => setNewCustName(e.target.value)}
+                  className="w-full p-2.5 bg-[#F6F1E6] rounded-lg border border-[#E1D6BE] font-medium text-[#1B2A45] focus:outline-hidden focus:border-[#B8905A]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#1B2A45] block">
+                  No. WhatsApp / HP <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="Contoh: 081234567890"
+                  value={newCustPhone}
+                  onChange={(e) => setNewCustPhone(e.target.value)}
+                  className="w-full p-2.5 bg-[#F6F1E6] rounded-lg border border-[#E1D6BE] font-medium text-[#1B2A45] focus:outline-hidden focus:border-[#B8905A]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#1B2A45] block">
+                  Alamat Singkat (Opsional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Kemang, Jakarta Selatan"
+                  value={newCustAddress}
+                  onChange={(e) => setNewCustAddress(e.target.value)}
+                  className="w-full p-2.5 bg-[#F6F1E6] rounded-lg border border-[#E1D6BE] font-medium text-[#1B2A45] focus:outline-hidden focus:border-[#B8905A]"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickRegisterModal(false)}
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] font-bold rounded-xl flex items-center gap-1.5 shadow-xs"
+                >
+                  <Check className="w-4 h-4 text-[#D9B98A]" /> Simpan & Pilih di Kasir
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

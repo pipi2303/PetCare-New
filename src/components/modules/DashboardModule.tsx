@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { UserRole } from '../../types';
 import {
   Users,
   Dog,
@@ -51,10 +52,12 @@ import { QueueDisplay } from '../common/QueueDisplay';
 import { PredictiveInventoryWidget } from '../common/PredictiveInventoryWidget';
 import { PredictiveTrafficGrowthWidget } from '../common/PredictiveTrafficGrowthWidget';
 import { SystemNotificationHeader } from '../common/SystemNotificationHeader';
+import { ExecutiveManagementHeader } from '../dashboard/ExecutiveManagementHeader';
 import { RecentPatientHistoryCard } from '../common/RecentPatientHistoryCard';
 import { SmartPatientCheckInCard } from '../common/SmartPatientCheckInCard';
 import { SmartPatientCheckInModal } from '../common/SmartPatientCheckInModal';
 import { UpcomingAppointmentsScheduler } from '../common/UpcomingAppointmentsScheduler';
+import { callPatientQueueVoice } from '../../utils/audioVoiceUtils';
 import {
   LayoutOptimizationAssistant,
   LayoutConfig,
@@ -88,11 +91,36 @@ export const DashboardModule: React.FC<{ setActiveModule: (m: any) => void }> = 
   const [doctorCategoryFilter, setDoctorCategoryFilter] = React.useState<'all' | 'dokter' | 'paramedik'>('all');
   const [hideOffDuty, setHideOffDuty] = React.useState<boolean>(false);
 
-  const { user } = useAuth();
-  const userRole = user?.role || 'owner_klinik';
-  const isPetshop = userRole === 'owner_petshop' || userRole === 'kasir';
-  const isClinic = userRole === 'owner_klinik' || userRole === 'owner' || userRole === 'dokter';
-  const isPetcare = userRole === 'owner_petcare' || userRole === 'admin' || userRole === 'superadmin';
+  const { user, switchRole, activeOwnership, setActiveOwnership } = useAuth();
+  
+  // Dynamic role resolution from activeOwnership or user role
+  let effectiveRole: UserRole = 'owner_petcare';
+  if (activeOwnership === 'owner_petshop' || user?.ownershipType === 'owner_petshop' || user?.role === 'owner_petshop' || user?.role === 'kasir') {
+    effectiveRole = 'owner_petshop';
+  } else if (activeOwnership === 'owner_klinik' || user?.ownershipType === 'owner_klinik' || user?.role === 'owner_klinik' || user?.role === 'dokter' || user?.role === 'perawat') {
+    effectiveRole = 'owner_klinik';
+  } else if (activeOwnership === 'owner_petcare' || user?.ownershipType === 'owner_petcare' || user?.role === 'owner_petcare' || user?.role === 'superadmin' || user?.role === 'admin' || user?.role === 'owner') {
+    effectiveRole = 'owner_petcare';
+  } else if (user?.role) {
+    effectiveRole = user.role;
+  }
+
+  const isPetshop = effectiveRole === 'owner_petshop' || effectiveRole === 'kasir';
+  const isClinic = effectiveRole === 'owner_klinik' || effectiveRole === 'dokter' || effectiveRole === 'perawat';
+  const isPetcare = !isPetshop && !isClinic;
+
+  const handleSwitchOwnership = (targetRole: UserRole) => {
+    switchRole(targetRole);
+    if (setActiveOwnership) {
+      setActiveOwnership(targetRole);
+    }
+    const roleLabels: Record<string, string> = {
+      owner_petcare: 'Owner PetCare (Konsolidasi Multi-Unit)',
+      owner_petshop: 'Owner PetShop (Retail & POS)',
+      owner_klinik: 'Owner Klinik (Praktik Medis Vet)'
+    };
+    addToast(`Perspektif Manajemen aktif: ${roleLabels[targetRole] || targetRole}`, 'success');
+  };
 
   // Redesigned Clinical / Retail Utilities & Surveillance State
   const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(() => getStoredLayoutConfig());
@@ -269,6 +297,8 @@ export const DashboardModule: React.FC<{ setActiveModule: (m: any) => void }> = 
     );
   };
   const {
+    branches,
+    activeBranchId,
     customers,
     pets,
     clinicVisits,
@@ -283,6 +313,9 @@ export const DashboardModule: React.FC<{ setActiveModule: (m: any) => void }> = 
     inpatients,
     purchaseOrders
   } = useData();
+
+  const activeBranch = (branches || []).find((b) => b.id === activeBranchId);
+  const activeBranchName = activeBranch ? `${activeBranch.name} (${activeBranch.code})` : 'Klinik & Pet Shop Pusat';
 
   // KPIs calculations based on business profile
   const totalCustomers = (customers || []).length;
@@ -413,138 +446,27 @@ export const DashboardModule: React.FC<{ setActiveModule: (m: any) => void }> = 
 
   const playQueueChime = (ticketNo: string, patientName: string) => {
     setIsCallingAudio(true);
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const now = ctx.currentTime;
-        const frequencies = [523.25, 659.25, 783.99];
-        frequencies.forEach((freq, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + i * 0.22);
-          gain.gain.setValueAtTime(0.2, now + i * 0.22);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.22 + 0.5);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + i * 0.22);
-          osc.stop(now + i * 0.22 + 0.55);
-        });
-      }
-      if ('speechSynthesis' in window) {
-        setTimeout(() => {
-          const utterance = new SpeechSynthesisUtterance(
-            `Nomor antrian, ${ticketNo}. Pasien, ${patientName}. Silakan memasuki ruang periksa.`
-          );
-          utterance.lang = 'id-ID';
-          utterance.rate = 0.95;
-          utterance.onend = () => setIsCallingAudio(false);
-          utterance.onerror = () => setIsCallingAudio(false);
-          window.speechSynthesis.speak(utterance);
-        }, 750);
-      } else {
-        setTimeout(() => setIsCallingAudio(false), 1200);
-      }
-    } catch (e) {
-      console.warn(e);
-      setIsCallingAudio(false);
-    }
-    addToast(`Panggilan suara antrian ${ticketNo} (${patientName}) diumumkan ke pengeras suara!`, 'info');
+    callPatientQueueVoice({
+      ticketNo,
+      patientName,
+      destination: 'ruang periksa dokter',
+      onEnd: () => setIsCallingAudio(false),
+      onError: () => setIsCallingAudio(false)
+    });
+    addToast(`Panggilan suara antrean ${ticketNo} (${patientName}) diumumkan ke pengeras suara (Suara Wanita Indonesia)!`, 'info');
   };
 
   return (
     <div className="space-y-6">
-      {/* Compact & Informative SystemNotificationHeader */}
-      <SystemNotificationHeader
-        icon={isPetshop ? ShoppingCart : isClinic ? Stethoscope : Sparkles}
-        title={
-          isPetshop
-            ? 'Ringkasan Operasional Toko Retail & Kasir POS'
-            : isClinic
-            ? 'Ringkasan Operasional Poliklinik & Medis Vet'
-            : 'Ringkasan Operasional Ekosistem Terpadu (Klinik, Toko, Salon & Hotel)'
-        }
-        description={
-          isPetshop
-            ? 'Sistem ERP Retail Pet Shop: Kasir POS Barcode, persediaan stok pakan & sanitasi fast-moving, purchase order supplier, dan omzet toko harian.'
-            : isClinic
-            ? 'Sistem ERP Klinik Medis: Antrian poliklinik dokter, rekam medis EMR, rawat inap ICU, peresepan apotek farmasi, dan lab darah.'
-            : 'Sistem ERP terintegrasi Real-time: Klinik Medis, Pet Shop POS Retail, Grooming Salon Spa & Pet Hotel Boarding.'
-        }
-        badges={[
-          {
-            label: isPetshop
-              ? 'Owner Petshop • POS Mode'
-              : isClinic
-              ? 'Owner Klinik • Medical Practice'
-              : 'Owner PetCare • All-in-One ERP',
-            variant: 'gold'
-          },
-          { label: `${customers.length} Klien Terdaftar`, variant: 'blue' },
-          { label: `${pets.length} Pasien Hewan`, variant: 'purple' },
-          { label: 'Cloud Sync Aktif', variant: 'emerald' }
-        ]}
-        actions={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowSmartCheckInModal(true)}
-              className="px-3 py-1.5 bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/40 hover:bg-[#101A2C]/80 font-bold rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-              title="Pindai QR Pasien Lama untuk Check-in Instan ke EMR & Antrean Poli"
-            >
-              <QrCode className="w-3.5 h-3.5 text-[#D9B98A]" />
-              <span className="hidden sm:inline">Smart QR Check-In</span>
-              <span className="sm:hidden">Check-in</span>
-            </button>
-            {isPetshop ? (
-              <>
-                <button
-                  onClick={() => setActiveModule('petShop')}
-                  className="px-3 py-1.5 bg-gradient-to-r from-[#B8905A] to-[#9E7848] text-[#101A2C] font-extrabold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5" /> Buka Kasir POS
-                </button>
-                <button
-                  onClick={() => setActiveModule('purchasing')}
-                  className="px-3 py-1.5 bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/40 hover:bg-[#101A2C]/80 font-bold rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Package className="w-3.5 h-3.5 text-[#D9B98A]" /> Order PO
-                </button>
-              </>
-            ) : isClinic ? (
-              <>
-                <button
-                  onClick={() => setActiveModule('booking')}
-                  className="px-3 py-1.5 bg-gradient-to-r from-[#B8905A] to-[#9E7848] text-[#101A2C] font-extrabold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Clock className="w-3.5 h-3.5" /> Antrian Poli
-                </button>
-                <button
-                  onClick={() => setActiveModule('pharmacy')}
-                  className="px-3 py-1.5 bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/40 hover:bg-[#101A2C]/80 font-bold rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Pill className="w-3.5 h-3.5 text-[#D9B98A]" /> Apotek Resep
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setActiveModule('booking')}
-                  className="px-3 py-1.5 bg-gradient-to-r from-[#B8905A] to-[#9E7848] text-[#101A2C] font-extrabold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Clock className="w-3.5 h-3.5" /> Antrian Poli
-                </button>
-                <button
-                  onClick={() => setActiveModule('petShop')}
-                  className="px-3 py-1.5 bg-[#101A2C] text-[#D9B98A] border border-[#B8905A]/40 hover:bg-[#101A2C]/80 font-bold rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5 text-[#D9B98A]" /> Kasir POS
-                </button>
-              </>
-            )}
-          </div>
-        }
+      {/* Executive Management Header with Live Ownership Switcher */}
+      <ExecutiveManagementHeader
+        effectiveRole={effectiveRole}
+        onSwitchRole={handleSwitchOwnership}
+        activeBranchName={activeBranchName}
+        totalCustomers={totalCustomers}
+        totalPets={totalPets}
+        onOpenCheckIn={() => setShowSmartCheckInModal(true)}
+        setActiveModule={setActiveModule}
       />
 
       {/* 8 KPI Cards Grid - Customized per Ownership Profile */}

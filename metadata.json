@@ -1,5 +1,5 @@
 {
-  "name": "PetCare ERP - Pet Clinic & Management System",
+  "name": "PetCare - ERP",
   "description": "Comprehensive Pet Clinic management system with EMR, Booking, Grooming, Pet Hotel, Pet Shop POS, Pharmacy, Billing, and AI Assistant.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

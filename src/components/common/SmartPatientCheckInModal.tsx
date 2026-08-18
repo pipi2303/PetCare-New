@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { ClinicVisit, Pet, Customer, VisitStatus } from '../../types';
+import { getIndonesianFemaleVoice, playHospitalChime } from '../../utils/audioVoiceUtils';
 import QRCode from 'qrcode';
 import {
   QrCode,
@@ -235,15 +236,25 @@ export const SmartPatientCheckInModal: React.FC<SmartPatientCheckInModalProps> =
     }
   };
 
-  // Voice speech synthesis announcement
+  // Voice speech synthesis announcement with fluent Indonesian female voice
   const announceQueueSpeech = (ticketNo: string, petName: string, doctorName: string) => {
+    playHospitalChime();
     if ('speechSynthesis' in window) {
       try {
-        const text = `Check-in berhasil. Nomor antrean ${ticketNo}. Pasien ${petName}. Silakan menunggu panggilan dokter di ruang tunggu.`;
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'id-ID';
-        utterance.rate = 0.95;
-        window.speechSynthesis.speak(utterance);
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+          const text = `Check-in mandiri berhasil. Nomor antrean, ${ticketNo}. Pasien, ${petName}. Silakan menunggu panggilan ${doctorName || 'dokter'} di ruang tunggu.`;
+          const utterance = new SpeechSynthesisUtterance(text);
+          const femaleVoice = getIndonesianFemaleVoice();
+          if (femaleVoice) {
+            utterance.voice = femaleVoice;
+          }
+          utterance.lang = 'id-ID';
+          utterance.pitch = 1.1;
+          utterance.rate = 0.92;
+          utterance.volume = 1.0;
+          window.speechSynthesis.speak(utterance);
+        }, 650);
       } catch (e) {
         console.warn('Speech synthesis failed:', e);
       }

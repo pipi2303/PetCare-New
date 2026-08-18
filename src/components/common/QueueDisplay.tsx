@@ -16,6 +16,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+import { callPatientQueueVoice } from '../../utils/audioVoiceUtils';
 
 interface QueueDisplayProps {
   onClose: () => void;
@@ -66,54 +67,17 @@ export const QueueDisplay: React.FC<QueueDisplayProps> = ({ onClose }) => {
   const waitingList = clinicVisits.filter((v) => v.status === 'Menunggu').slice(0, 5);
   const completedToday = clinicVisits.filter((v) => v.status === 'Selesai').length;
 
-  // Sound chime using Web Audio API + SpeechSynthesis
+  // Sound chime using Web Audio API + SpeechSynthesis (Indonesian Female Voice)
   const playCallAnnouncement = (ticketNo: string, patientName: string, doctorName: string) => {
     setIsCallingAudio(true);
-
-    try {
-      // Audio Chime Generator using standard Web Audio API
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const now = ctx.currentTime;
-
-        // Pleasant 3-tone airport/hospital chime: C5 -> E5 -> G5
-        const frequencies = [523.25, 659.25, 783.99];
-        frequencies.forEach((freq, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + i * 0.22);
-          gain.gain.setValueAtTime(0.25, now + i * 0.22);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.22 + 0.5);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(now + i * 0.22);
-          osc.stop(now + i * 0.22 + 0.55);
-        });
-      }
-
-      // Voice synthesis announcement
-      if ('speechSynthesis' in window) {
-        setTimeout(() => {
-          const utterance = new SpeechSynthesisUtterance(
-            `Nomor antrian, ${ticketNo}. Pasien, ${patientName}. Silakan memasuki ruang periksa.`
-          );
-          utterance.lang = 'id-ID';
-          utterance.rate = 0.95;
-          utterance.onend = () => setIsCallingAudio(false);
-          utterance.onerror = () => setIsCallingAudio(false);
-          window.speechSynthesis.speak(utterance);
-        }, 800);
-      } else {
-        setTimeout(() => setIsCallingAudio(false), 1200);
-      }
-    } catch (e) {
-      console.warn('Audio call failed:', e);
-      setIsCallingAudio(false);
-    }
-
-    addToast(`Panggilan suara antrian ${ticketNo} (${patientName}) diumumkan ke speaker ruang tunggu!`, 'info');
+    callPatientQueueVoice({
+      ticketNo,
+      patientName,
+      destination: doctorName ? `ruang periksa ${doctorName}` : 'ruang periksa dokter',
+      onEnd: () => setIsCallingAudio(false),
+      onError: () => setIsCallingAudio(false)
+    });
+    addToast(`Panggilan suara antrean ${ticketNo} (${patientName}) diumumkan ke speaker ruang tunggu (Suara Wanita Indonesia)!`, 'info');
   };
 
   const toggleFullscreen = () => {

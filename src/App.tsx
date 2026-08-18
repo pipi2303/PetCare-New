@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider, useData } from './context/DataContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -72,7 +73,7 @@ import {
 } from 'lucide-react';
 
 const MODULE_TITLES: Record<NavModule, { title: string; desc: string }> = {
-  dashboard: { title: 'Dashboard ERP', desc: 'Ringkasan performa klinik, omzet, dan antrian' },
+  dashboard: { title: 'Dashboard Utama', desc: 'Ringkasan performa klinik, omzet, dan antrian' },
   masterData: { title: 'Master Data Pelanggan & Hewan', desc: 'Database pelanggan, pasien hewan microchip, katalog tarif, dokter & supplier' },
   booking: { title: 'Booking & Antrian Layanan', desc: 'Sistem booking online, nomor antrian otomatis & layar TV pemanggil' },
   clinic: { title: 'Pemeriksaan Klinik & CPPT', desc: 'Pemeriksaan fisik dokter, keluhan, diagnosis ICD-10, SOAP & resep' },
@@ -192,173 +193,187 @@ const MainAppContent: React.FC = () => {
           {/* WhatsApp Status Banner */}
           <WAStatusBanner />
 
-          {/* Quick Utility Actions Bar */}
-          <div className="flex items-center justify-between bg-[#FFFDF9] px-4 py-2.5 rounded-xl border border-[#E1D6BE] shadow-2xs">
-            <div className="flex items-center gap-2.5 text-xs font-semibold text-[#1B2A45]">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2 py-0.5 rounded-md bg-[#1B2A45] text-[#D9B98A] font-bold text-[11px] flex items-center gap-1 shadow-2xs">
-                  <span>{roleInfo.iconText}</span> {roleInfo.label}
-                </span>
-                <span className="text-[#6B6656] text-[11px] hidden sm:inline">
-                  • {roleInfo.businessType}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowDoseCalcModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-[#E1D6BE]/40 hover:bg-[#E1D6BE]/70 text-[#1B2A45] text-xs font-bold flex items-center gap-1.5 transition-colors border border-[#E1D6BE]"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#B8905A]" />
-                <span>Kalkulator Dosis</span>
-              </button>
-
-              <button
-                onClick={() => setShowCctvModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-[#E1D6BE]/40 hover:bg-[#E1D6BE]/70 text-[#1B2A45] text-xs font-bold flex items-center gap-1.5 transition-colors border border-[#E1D6BE]"
-              >
-                <Tv className="w-3.5 h-3.5 text-[#1B2A45]" />
-                <span>CCTV Monitor</span>
-              </button>
-
-              <button
-                onClick={() => setShowQueueDisplay(true)}
-                className="px-3 py-1.5 rounded-lg bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
-              >
-                <Tv className="w-3.5 h-3.5 text-[#D9B98A]" />
-                <span>Layar Antrian TV</span>
-              </button>
-            </div>
-          </div>
-
-          {/* If module is restricted for the current user's profile, show informative role-restricted view */}
-          {!isModuleAllowed ? (
-            <div className="bg-[#FFFDF9] rounded-2xl border border-[#E1D6BE] p-8 shadow-xs text-center max-w-2xl mx-auto space-y-4 animate-in fade-in">
-              <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-3xl border border-amber-500/20">
-                🔒
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-lg font-bold text-[#1B2A45] font-display">
-                  Menu Disembunyikan untuk Profil {roleInfo.label}
-                </h3>
-                <p className="text-xs text-[#6B6656] max-w-lg mx-auto leading-relaxed">
-                  Modul <strong>"{MODULE_TITLES[activeModule]?.title || activeModule}"</strong> tidak aktif pada jenis kepemilikan usaha <strong>{roleInfo.businessType}</strong>. Menu ini otomatis disembunyikan dari sidebar untuk kenyamanan dan fokus operasional usaha Anda.
-                </p>
+          {/* Quick Utility Actions Bar - Only visible on Dashboard ERP */}
+          {activeModule === 'dashboard' && (
+            <div className="flex items-center justify-between bg-[#FFFDF9] px-4 py-2.5 rounded-xl border border-[#E1D6BE] shadow-2xs">
+              <div className="flex items-center gap-2.5 text-xs font-semibold text-[#1B2A45]">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md bg-[#1B2A45] text-[#D9B98A] font-bold text-[11px] flex items-center gap-1 shadow-2xs">
+                    <span>{roleInfo.iconText}</span> {roleInfo.label}
+                  </span>
+                  <span className="text-[#6B6656] text-[11px] hidden sm:inline">
+                    • {roleInfo.businessType}
+                  </span>
+                </div>
               </div>
 
-              <div className="bg-[#F6F1E6] p-4 rounded-xl border border-[#E1D6BE] text-left text-xs space-y-2">
-                <p className="font-bold text-[#1B2A45] flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-[#B8905A]" /> Ringkasan Hak Akses Profil Anda:
-                </p>
-                <p className="text-[#6B6656] text-[11px]">{roleInfo.desc}</p>
-              </div>
-
-              <div className="pt-2 flex items-center justify-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => {
-                    if (userRole === 'owner_petshop') {
-                      setActiveModule('petShop');
-                    } else {
-                      setActiveModule('dashboard');
-                    }
-                  }}
-                  className="px-5 py-2.5 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2"
+                  onClick={() => setShowDoseCalcModal(true)}
+                  className="px-3 py-1.5 rounded-lg bg-[#E1D6BE]/40 hover:bg-[#E1D6BE]/70 text-[#1B2A45] text-xs font-bold flex items-center gap-1.5 transition-colors border border-[#E1D6BE]"
                 >
-                  <span>Buka Menu Utama Profil</span>
-                  <ArrowRight className="w-4 h-4 text-[#D9B98A]" />
+                  <Sparkles className="w-3.5 h-3.5 text-[#B8905A]" />
+                  <span>Kalkulator Dosis</span>
+                </button>
+
+                <button
+                  onClick={() => setShowCctvModal(true)}
+                  className="px-3 py-1.5 rounded-lg bg-[#E1D6BE]/40 hover:bg-[#E1D6BE]/70 text-[#1B2A45] text-xs font-bold flex items-center gap-1.5 transition-colors border border-[#E1D6BE]"
+                >
+                  <Tv className="w-3.5 h-3.5 text-[#1B2A45]" />
+                  <span>CCTV Monitor</span>
+                </button>
+
+                <button
+                  onClick={() => setShowQueueDisplay(true)}
+                  className="px-3 py-1.5 rounded-lg bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                >
+                  <Tv className="w-3.5 h-3.5 text-[#D9B98A]" />
+                  <span>Layar Antrian TV</span>
                 </button>
               </div>
             </div>
-          ) : (
-            <>
-              {/* Render Active Module */}
-              {activeModule === 'dashboard' && <DashboardModule setActiveModule={setActiveModule} />}
-              {activeModule === 'masterData' && <MasterDataModule />}
-              {(activeModule === 'clinic' || activeModule === 'eForms' || activeModule === 'carePlan') && <ClinicModule activeModule={activeModule} />}
-              {(activeModule === 'emr' || activeModule === 'pharmacy' || activeModule === 'patientGallery') && <DiagnosticsModule activeModule={activeModule} />}
-              {['booking', 'grooming', 'petHotel', 'telehealth', 'ambulance'].includes(activeModule) && (
-                <ServicesModule activeModule={activeModule} setActiveModule={setActiveModule} />
-              )}
-              {activeModule === 'hrm' && <HRMModule />}
-              {activeModule === 'reports' && <ReportsExportModule />}
-              {activeModule === 'aiAssistant' && <AIAssistantModule setActiveModule={setActiveModule} />}
-              {activeModule === 'crm' && <CRMModule />}
-              {activeModule === 'petShop' && <PetShopModule />}
-              {activeModule === 'inventory' && <InventoryModule activeModule={activeModule} setActiveModule={setActiveModule} />}
-              {activeModule === 'purchasing' && <PurchasingModule />}
-              {(activeModule === 'billing' || activeModule === 'finance') && <BillingFinanceModule activeModule={activeModule} />}
-              {activeModule === 'vaccination' && <ClientPortalModule activeModule={activeModule} />}
-              {activeModule === 'systemGroups' && <SystemGroupsModule />}
-              {activeModule === 'branches' && <BranchesModule />}
-              {activeModule === 'notifications' && <NotificationsModule setActiveModule={setActiveModule} />}
-              {activeModule === 'auditLog' && <AuditLogModule />}
-              {activeModule === 'settings' && <SettingsModule />}
-              {activeModule === 'tenantAdmin' && <TenantAdminModule />}
+          )}
 
-              {![
-                'dashboard',
-                'masterData',
-                'clinic',
-                'emr',
-                'pharmacy',
-                'patientGallery',
-                'eForms',
-                'carePlan',
-                'booking',
-                'grooming',
-                'petHotel',
-                'telehealth',
-                'ambulance',
-                'hrm',
-                'reports',
-                'aiAssistant',
-                'crm',
-                'billing',
-                'finance',
-                'petShop',
-                'inventory',
-                'purchasing',
-                'vaccination',
-                'systemGroups',
-                'branches',
-                'notifications',
-                'auditLog',
-                'settings',
-                'tenantAdmin'
-              ].includes(activeModule) && (
-                <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-8 shadow-2xs text-center space-y-4">
-                  <div className="w-14 h-14 mx-auto rounded-full bg-[#E1D6BE]/40 text-[#1B2A45] flex items-center justify-center font-bold text-2xl border border-[#E1D6BE]">
-                    🐾
+          {/* Animated Module Container */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeModule}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full"
+            >
+              {/* If module is restricted for the current user's profile, show informative role-restricted view */}
+              {!isModuleAllowed ? (
+                <div className="bg-[#FFFDF9] rounded-2xl border border-[#E1D6BE] p-8 shadow-xs text-center max-w-2xl mx-auto space-y-4">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-3xl border border-amber-500/20">
+                    🔒
                   </div>
-                  <div className="max-w-md mx-auto space-y-1">
-                    <h2 className="text-xl font-bold text-[#1B2A45] font-display">
-                      {MODULE_TITLES[activeModule]?.title || activeModule}
-                    </h2>
-                    <p className="text-xs text-[#6B6656]">
-                      {MODULE_TITLES[activeModule]?.desc || 'Modul operasional ERP terintegrasi.'}
+                  <div className="space-y-1.5">
+                    <h3 className="text-lg font-bold text-[#1B2A45] font-display">
+                      Menu Disembunyikan untuk Profil {roleInfo.label}
+                    </h3>
+                    <p className="text-xs text-[#6B6656] max-w-lg mx-auto leading-relaxed">
+                      Modul <strong>"{MODULE_TITLES[activeModule]?.title || activeModule}"</strong> tidak aktif pada jenis kepemilikan usaha <strong>{roleInfo.businessType}</strong>. Menu ini otomatis disembunyikan dari sidebar untuk kenyamanan dan fokus operasional usaha Anda.
                     </p>
                   </div>
 
-                  <div className="pt-4 flex items-center justify-center gap-3">
+                  <div className="bg-[#F6F1E6] p-4 rounded-xl border border-[#E1D6BE] text-left text-xs space-y-2">
+                    <p className="font-bold text-[#1B2A45] flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-[#B8905A]" /> Ringkasan Hak Akses Profil Anda:
+                    </p>
+                    <p className="text-[#6B6656] text-[11px]">{roleInfo.desc}</p>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-center gap-3">
                     <button
-                      onClick={() => addToast(`Modul ${MODULE_TITLES[activeModule]?.title} dalam mode aktif.`, 'info')}
-                      className="px-4 py-2 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5"
+                      onClick={() => {
+                        if (userRole === 'owner_petshop') {
+                          setActiveModule('petShop');
+                        } else {
+                          setActiveModule('dashboard');
+                        }
+                      }}
+                      className="px-5 py-2.5 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
                     >
-                      <Plus className="w-4 h-4 text-[#D9B98A]" /> Tambah Transaksi / Record
-                    </button>
-                    <button
-                      onClick={() => setActiveModule('dashboard')}
-                      className="px-4 py-2 bg-[#B8905A] hover:bg-[#9E7848] text-[#FFFDF9] text-xs font-bold rounded-lg transition-all"
-                    >
-                      Kembali ke Dashboard
+                      <span>Buka Menu Utama Profil</span>
+                      <ArrowRight className="w-4 h-4 text-[#D9B98A]" />
                     </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  {/* Render Active Module */}
+                  {activeModule === 'dashboard' && <DashboardModule setActiveModule={setActiveModule} />}
+                  {activeModule === 'masterData' && <MasterDataModule />}
+                  {(activeModule === 'clinic' || activeModule === 'eForms' || activeModule === 'carePlan') && <ClinicModule activeModule={activeModule} />}
+                  {(activeModule === 'emr' || activeModule === 'pharmacy' || activeModule === 'patientGallery') && <DiagnosticsModule activeModule={activeModule} />}
+                  {['booking', 'grooming', 'petHotel', 'telehealth', 'ambulance'].includes(activeModule) && (
+                    <ServicesModule activeModule={activeModule} setActiveModule={setActiveModule} />
+                  )}
+                  {activeModule === 'hrm' && <HRMModule />}
+                  {activeModule === 'reports' && <ReportsExportModule />}
+                  {activeModule === 'aiAssistant' && <AIAssistantModule setActiveModule={setActiveModule} />}
+                  {activeModule === 'crm' && <CRMModule />}
+                  {activeModule === 'petShop' && <PetShopModule />}
+                  {activeModule === 'inventory' && <InventoryModule activeModule={activeModule} setActiveModule={setActiveModule} />}
+                  {activeModule === 'purchasing' && <PurchasingModule />}
+                  {(activeModule === 'billing' || activeModule === 'finance') && <BillingFinanceModule activeModule={activeModule} />}
+                  {activeModule === 'vaccination' && <ClientPortalModule activeModule={activeModule} />}
+                  {activeModule === 'systemGroups' && <SystemGroupsModule />}
+                  {activeModule === 'branches' && <BranchesModule />}
+                  {activeModule === 'notifications' && <NotificationsModule setActiveModule={setActiveModule} />}
+                  {activeModule === 'auditLog' && <AuditLogModule />}
+                  {activeModule === 'settings' && <SettingsModule />}
+                  {activeModule === 'tenantAdmin' && <TenantAdminModule />}
+
+                  {![
+                    'dashboard',
+                    'masterData',
+                    'clinic',
+                    'emr',
+                    'pharmacy',
+                    'patientGallery',
+                    'eForms',
+                    'carePlan',
+                    'booking',
+                    'grooming',
+                    'petHotel',
+                    'telehealth',
+                    'ambulance',
+                    'hrm',
+                    'reports',
+                    'aiAssistant',
+                    'crm',
+                    'billing',
+                    'finance',
+                    'petShop',
+                    'inventory',
+                    'purchasing',
+                    'vaccination',
+                    'systemGroups',
+                    'branches',
+                    'notifications',
+                    'auditLog',
+                    'settings',
+                    'tenantAdmin'
+                  ].includes(activeModule) && (
+                    <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-8 shadow-2xs text-center space-y-4">
+                      <div className="w-14 h-14 mx-auto rounded-full bg-[#E1D6BE]/40 text-[#1B2A45] flex items-center justify-center font-bold text-2xl border border-[#E1D6BE]">
+                        🐾
+                      </div>
+                      <div className="max-w-md mx-auto space-y-1">
+                        <h2 className="text-xl font-bold text-[#1B2A45] font-display">
+                          {MODULE_TITLES[activeModule]?.title || activeModule}
+                        </h2>
+                        <p className="text-xs text-[#6B6656]">
+                          {MODULE_TITLES[activeModule]?.desc || 'Modul operasional ERP terintegrasi.'}
+                        </p>
+                      </div>
+
+                      <div className="pt-4 flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => addToast(`Modul ${MODULE_TITLES[activeModule]?.title} dalam mode aktif.`, 'info')}
+                          className="px-4 py-2 bg-[#1B2A45] hover:bg-[#101A2C] text-[#FFFDF9] text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4 text-[#D9B98A]" /> Tambah Transaksi / Record
+                        </button>
+                        <button
+                          onClick={() => setActiveModule('dashboard')}
+                          className="px-4 py-2 bg-[#B8905A] hover:bg-[#9E7848] text-[#FFFDF9] text-xs font-bold rounded-lg transition-all cursor-pointer"
+                        >
+                          Kembali ke Dashboard
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
 

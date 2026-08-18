@@ -152,11 +152,7 @@ export const ClinicModule: React.FC<ClinicModuleProps> = ({ activeModule }) => {
   const {
     draft: soapDraft,
     setDraft: setSoapDraft,
-    isSaving,
-    lastSavedAt,
-    hasRestoredDraft,
-    clearDraft,
-    discardDraft
+    clearDraft
   } = useAutoSaveDraft<SoapDraftData>(storageKey, defaultSoapValues, 500);
 
   const updateDraft = (fields: Partial<SoapDraftData>) => {
@@ -576,85 +572,62 @@ export const ClinicModule: React.FC<ClinicModuleProps> = ({ activeModule }) => {
         ]}
       />
 
-      {/* Select Active Clinic Patient */}
-      <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-2">
-        <label className="text-xs font-bold text-[#1B2A45] block flex items-center gap-1.5">
-          <User className="w-4 h-4 text-[#B8905A]" /> Pilih Antrean Pasien Aktif di Klinik:
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {clinicVisits.map((v) => {
-            const isSelected = v.id === selectedVisitId;
-            return (
-              <button
-                key={v.id}
-                onClick={() => setSelectedVisitId(v.id)}
-                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all border flex items-center gap-2 ${
-                  isSelected
-                    ? 'bg-[#1B2A45] text-[#FFFDF9] border-[#1B2A45] shadow-2xs'
-                    : 'bg-[#F6F1E6] text-[#22242B] border-[#E1D6BE] hover:border-[#B8905A]'
+      {/* Select Active Clinic Patient - Dropdown List Format */}
+      <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <label className="text-xs font-bold text-[#1B2A45] flex items-center gap-1.5 shrink-0">
+            <User className="w-4 h-4 text-[#B8905A]" /> Dropdown Antrean Pasien Klinik:
+          </label>
+
+          <div className="relative flex-1 max-w-xl">
+            <select
+              value={selectedVisitId}
+              onChange={(e) => setSelectedVisitId(e.target.value)}
+              className="w-full bg-[#F6F1E6] hover:bg-white text-[#1B2A45] text-xs font-bold rounded-xl px-3.5 py-2.5 border border-[#E1D6BE] focus:outline-hidden focus:border-[#B8905A] shadow-2xs transition-all cursor-pointer"
+            >
+              {clinicVisits.map((v) => (
+                <option key={v.id} value={v.id}>
+                  Antrean #{v.queueNo}: {v.petName} ({v.petSpecies || 'Pasien'}) • Pemilik: {v.customerName} • Status: [{v.status}]
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Selected Patient Banner Snapshot */}
+        {selectedVisit && (
+          <div className="p-3 bg-[#FAF7F2] rounded-xl border border-[#E1D6BE]/70 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#1B2A45] text-amber-300 font-mono font-black flex items-center justify-center text-xs shadow-2xs">
+                #{selectedVisit.queueNo}
+              </div>
+              <div>
+                <p className="font-bold text-[#1B2A45]">
+                  {selectedVisit.petName} <span className="font-normal text-[#6B6656]">({selectedVisit.petSpecies || 'Anjing / Kucing'})</span>
+                </p>
+                <p className="text-[11px] text-[#6B6656]">
+                  Pemilik: <strong className="text-[#1B2A45]">{selectedVisit.customerName}</strong> • Keluhan: {selectedVisit.complaint || 'Pemeriksaan Rutin'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[#6B6656]">Dokter: <strong className="text-[#1B2A45]">{selectedVisit.doctorName || 'drh. Ananda'}</strong></span>
+              <span
+                className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${
+                  selectedVisit.status === 'Sedang Diperiksa'
+                    ? 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse'
+                    : selectedVisit.status === 'Selesai'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : 'bg-slate-100 text-slate-700 border-slate-300'
                 }`}
               >
-                <span className="w-2 h-2 rounded-full bg-[#B8905A]" />
-                <span>Antrean #{v.queueNo}: {v.petName}</span>
-                <span className="text-[10px] opacity-80">({v.customerName})</span>
-                <span
-                  className={`text-[9px] px-1.5 py-0.2 rounded font-normal ${
-                    v.status === 'Sedang Diperiksa'
-                      ? 'bg-amber-100 text-amber-800'
-                      : v.status === 'Selesai'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {v.status}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* LocalStorage Auto-Save Status Banner */}
-      {activeTab === 'soap' && (
-        <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] px-4 py-2.5 shadow-2xs flex items-center justify-between text-xs font-semibold text-[#1B2A45]">
-          <div className="flex items-center gap-2.5">
-            <div className={`p-1.5 rounded-lg ${isSaving ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-              <Save className={`w-4 h-4 ${isSaving ? 'animate-spin' : ''}`} />
-            </div>
-            <div>
-              <p className="font-bold text-[#1B2A45]">
-                {isSaving ? 'Menyimpan draft medis ke LocalStorage...' : 'Auto-Save EMR LocalStorage Aktif'}
-              </p>
-              <p className="text-[11px] text-[#6B6656] font-normal">
-                {lastSavedAt ? (
-                  <>
-                    Draft catatan medis tersimpan otomatis pada <span className="font-bold text-emerald-800">{lastSavedAt}</span>.
-                  </>
-                ) : (
-                  'Setiap perubahan pada SOAP, resep, dan peta anatomi tersimpan otomatis ke LocalStorage.'
-                )}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {hasRestoredDraft && (
-              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-300 shrink-0">
-                Draft Tersimpan Dimuat
+                ● {selectedVisit.status}
               </span>
-            )}
-            {hasRestoredDraft && (
-              <button
-                onClick={discardDraft}
-                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 shrink-0"
-                title="Hapus draft lokal dan reset ke data awal"
-              >
-                <RotateCcw className="w-3 h-3" /> Reset Draft
-              </button>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Active Tab View */}
       {activeTab === 'soap' && (

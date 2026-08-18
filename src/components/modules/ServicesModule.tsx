@@ -104,6 +104,7 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({ activeModule = '
   const [bookingTime, setBookingTime] = useState('10:00');
   const [bookingNotes, setBookingNotes] = useState('Pemeriksaan kesehatan rutin');
   const [bookingFilterStatus, setBookingFilterStatus] = useState<string>('Semua');
+  const [selectedBookingPatientId, setSelectedBookingPatientId] = useState<string>(doctorBookings[0]?.id || '');
 
   const selectedCust = customers.find((c) => c.id === bookingCustId);
   const custPets = pets.filter((p) => p.customerId === bookingCustId);
@@ -335,7 +336,8 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({ activeModule = '
       assignedUnitCode: 'AMB-01'
     });
 
-    addToast(`Panggilan Darurat Ambulance Dispatch (${newReq.requestNo}) DITERIMA! Unit AMB-01 diluncurkan.`, 'success');
+    const reqNumber = newReq?.requestNo || 'AMB-REQ-LIVE';
+    addToast(`Panggilan Darurat Ambulance Dispatch (${reqNumber}) DITERIMA! Unit AMB-01 diluncurkan.`, 'success');
     setShowAddAmbulanceModal(false);
   };
 
@@ -456,6 +458,50 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({ activeModule = '
             >
               <Plus className="w-4 h-4" /> Buat Janji Temu Baru
             </button>
+          </div>
+
+          {/* Dropdown Quick Selector for Booking Patients */}
+          <div className="bg-[#FFFDF9] rounded-xl border border-[#E1D6BE] p-3.5 shadow-2xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <label className="text-xs font-bold text-[#1B2A45] flex items-center gap-1.5 shrink-0">
+              <User className="w-4 h-4 text-[#B8905A]" /> Dropdown List Booking Pasien:
+            </label>
+            <div className="flex-1 max-w-xl">
+              <select
+                value={selectedBookingPatientId}
+                onChange={(e) => setSelectedBookingPatientId(e.target.value)}
+                className="w-full bg-[#F6F1E6] hover:bg-white text-[#1B2A45] text-xs font-bold rounded-lg px-3 py-2 border border-[#E1D6BE] focus:outline-hidden focus:border-[#B8905A] shadow-2xs transition-all cursor-pointer"
+              >
+                {doctorBookings.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.bookingNo}: {b.petName} ({b.petSpecies}) • {b.customerName} @ {b.date} {b.timeSlot} [{b.status}]
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedBookingPatientId && (
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const b = doctorBookings.find((item) => item.id === selectedBookingPatientId);
+                  if (!b) return null;
+                  return (
+                    <>
+                      {b.status === 'Terkonfirmasi' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            checkInDoctorBooking(b.id);
+                            addToast(`Pasien ${b.petName} berhasil check-in ke antrean klinik!`, 'success');
+                          }}
+                          className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-[#FFFDF9] font-bold text-xs rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Check-in Pasien Ini
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Bookings List Table */}

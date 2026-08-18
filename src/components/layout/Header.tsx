@@ -77,8 +77,8 @@ export const Header: React.FC<HeaderProps> = ({
   openPublicBooking,
   onOpenAI,
 }) => {
-  const { user, switchRole, logout, openLoginScreen, activeBranchId, activeOwnership } = useAuth();
-  const { notifications = [], markNotificationRead, branches = [] } = useData();
+  const { user, switchRole, logout, openLoginScreen, activeOwnership } = useAuth();
+  const { notifications = [], markNotificationRead } = useData();
   const { addToast } = useToast();
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -96,12 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   const roleInfo = getRoleInfo(userRole);
   const unreadCount = (notifications || []).filter((n) => !n.isRead).length;
-
-  const currentBranch = branches.find((b) => b.id === activeBranchId) || {
-    id: 'b1',
-    name: 'Klinik Utama (Pusat)',
-    code: 'BR-01'
-  };
 
   const todayFormatted = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -164,11 +158,11 @@ export const Header: React.FC<HeaderProps> = ({
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="hidden sm:block">
-          <nav className="text-[9px] text-[#EDE6D6]/70 flex items-center gap-1.5 font-medium leading-none">
-            <span className="text-[#D9B98A] font-bold text-[9px]">PetCare ERP</span>
-            <span className="text-[#B8905A] font-bold text-[9px]">/</span>
-            <span className="text-[#FFFDF9] font-bold font-display tracking-tight text-[9px]">
+        <div className="hidden sm:flex items-center gap-2">
+          <nav className="text-xs text-[#EDE6D6]/80 flex items-center gap-1.5 font-medium leading-tight">
+            <span className="text-[#D9B98A] font-bold">PetCare - ERP</span>
+            <span className="text-[#B8905A]/70 font-bold">/</span>
+            <span className="text-[#FFFDF9] font-bold font-display tracking-tight">
               {MODULE_TITLES[activeModule] || activeModule}
             </span>
           </nav>
@@ -189,34 +183,6 @@ export const Header: React.FC<HeaderProps> = ({
           </kbd>
         </button>
 
-        {/* Tanya Vet AI Button with Tooltip */}
-        {onOpenAI && (
-          <div className="relative group">
-            <button
-              onClick={onOpenAI}
-              className="flex items-center justify-center p-2 rounded-lg bg-linear-to-r from-[#B8905A] to-[#D9B98A] text-[#101A2C] hover:opacity-90 transition-all shadow-2xs cursor-pointer"
-              aria-label="Tanya Vet AI"
-            >
-              <Sparkles className="w-4 h-4 text-[#101A2C]" />
-            </button>
-
-            {/* Tooltip */}
-            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center px-2.5 py-1 bg-[#101A2C] border border-[#B8905A]/40 text-[#FFFDF9] text-[11px] font-medium rounded-md shadow-xl whitespace-nowrap z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-              <span>Tanya Vet AI</span>
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#101A2C] border-t border-l border-[#B8905A]/40 rotate-45"></div>
-            </div>
-          </div>
-        )}
-
-        {/* Branch Quick Indicator Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#101A2C] border border-[#B8905A]/30 text-xs text-[#D9B98A]">
-          <Store className="w-3.5 h-3.5 text-[#D9B98A]" />
-          <span className="font-semibold text-[#FFFDF9] truncate max-w-[150px]">{currentBranch.name}</span>
-          <span className="px-1.5 py-0.2 rounded bg-[#B8905A]/20 text-[9px] font-mono font-bold text-[#D9B98A]">
-            {currentBranch.code}
-          </span>
-        </div>
-
         {/* Public Booking Portal button */}
         <div className="relative group">
           <button
@@ -232,12 +198,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Form Booking Online</span>
             <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#101A2C] border-t border-l border-[#B8905A]/40 rotate-45"></div>
           </div>
-        </div>
-
-        {/* Today Date */}
-        <div className="hidden xl:flex items-center gap-1.5 text-xs text-[#EDE6D6] bg-[#101A2C] px-2.5 py-1.5 rounded-lg border border-[#B8905A]/30">
-          <Calendar className="w-3.5 h-3.5 text-[#D9B98A]" />
-          <span className="font-medium">{todayFormatted}</span>
         </div>
 
         {/* Notification Bell */}
@@ -288,46 +248,6 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Quick Owner Switch Pills (Desktop) */}
-        <div className="hidden 2xl:flex items-center gap-1 px-1.5 py-1 rounded-xl bg-[#101A2C]/90 border border-[#B8905A]/30">
-          <button
-            onClick={() => handleRoleSelect('owner_klinik')}
-            title="Beralih ke Profil Owner Klinik"
-            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-              userRole === 'owner_klinik' || userRole === 'owner'
-                ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 shadow-xs'
-                : 'text-[#EDE6D6]/70 hover:text-[#FFFDF9] hover:bg-[#1B2A45]'
-            }`}
-          >
-            <span>🏥</span>
-            <span>Klinik</span>
-          </button>
-          <button
-            onClick={() => handleRoleSelect('owner_petshop')}
-            title="Beralih ke Profil Owner Petshop (Retail & POS)"
-            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-              userRole === 'owner_petshop'
-                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
-                : 'text-[#EDE6D6]/70 hover:text-[#FFFDF9] hover:bg-[#1B2A45]'
-            }`}
-          >
-            <span>🛒</span>
-            <span>PetShop</span>
-          </button>
-          <button
-            onClick={() => handleRoleSelect('owner_petcare')}
-            title="Beralih ke Profil Owner PetCare (All-in-One)"
-            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
-              userRole === 'owner_petcare'
-                ? 'bg-[#D9B98A]/30 text-[#D9B98A] border border-[#B8905A]/60 shadow-xs'
-                : 'text-[#EDE6D6]/70 hover:text-[#FFFDF9] hover:bg-[#1B2A45]'
-            }`}
-          >
-            <span>🐾</span>
-            <span>PetCare</span>
-          </button>
         </div>
 
         {/* User Role Profile Switcher Badge (Section Kanan Atas) */}

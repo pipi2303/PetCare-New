@@ -161,7 +161,7 @@ export const SystemGroupsModule: React.FC = () => {
       isSystemDefault: true,
       createdAt: '2026-01-01',
       modulePermissions: [
-        { moduleId: 'dashboard', moduleName: 'Dashboard ERP & Analitik', canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true },
+        { moduleId: 'dashboard', moduleName: 'Dashboard Utama & Analitik', canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true },
         { moduleId: 'finance', moduleName: 'Buku Kas & Laporan Laba Rugi', canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true },
         { moduleId: 'hrm', moduleName: 'SDM, Payroll & Shift Staf', canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true },
         { moduleId: 'reports', moduleName: 'Laporan Eksekutif & Ekspor', canView: true, canCreate: true, canEdit: true, canDelete: true, canApprove: true },
@@ -645,7 +645,7 @@ export const SystemGroupsModule: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-[#E1D6BE] bg-white">
                 {[
-                  { name: 'Dashboard ERP & Laporan Eksekutif', owner: true, doc: true, pharm: false, cashier: false, care: false },
+                  { name: 'Dashboard Utama & Laporan Eksekutif', owner: true, doc: true, pharm: false, cashier: false, care: false },
                   { name: 'Pemeriksaan Klinik & EMR Medis', owner: true, doc: true, pharm: false, cashier: false, care: false },
                   { name: 'Apotek, Dispensing & Laboratorium', owner: true, doc: true, pharm: true, cashier: false, care: false },
                   { name: 'Pet Shop Retail & Kasir POS', owner: true, doc: false, pharm: false, cashier: true, care: false },

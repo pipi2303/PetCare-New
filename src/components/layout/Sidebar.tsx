@@ -146,7 +146,7 @@ export const MODULE_PERMISSIONS: Record<NavModule, string[]> = {
 const NAV_GROUPS: NavGroup[] = [
   {
     title: 'BERANDA',
-    items: [{ id: 'dashboard', label: 'Dashboard ERP', icon: LayoutDashboard, allowedRoles: MODULE_PERMISSIONS.dashboard }],
+    items: [{ id: 'dashboard', label: 'Dashboard Utama', icon: LayoutDashboard, allowedRoles: MODULE_PERMISSIONS.dashboard }],
   },
   {
     title: 'DATA MASTER',
@@ -276,8 +276,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               🐾
             </div>
             <div className="min-w-0">
-              <h1 className="font-bold text-[#EDE6D6] leading-tight text-sm tracking-tight font-display truncate">PetCare ERP</h1>
-              <p className="text-[10px] text-[#D9B98A] font-semibold uppercase tracking-wider truncate">Sistem Operasional Bisnis</p>
+              <h1 className="font-bold text-[#EDE6D6] leading-tight text-sm tracking-tight font-display truncate">
+                PetCare - ERP
+              </h1>
             </div>
           </div>
         )}
