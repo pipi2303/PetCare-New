@@ -94,8 +94,8 @@ interface NavGroup {
 }
 
 // Group definitions for role-based permissions
-const ALL_OWNERS = ['owner_klinik', 'owner_petshop', 'owner_petcare', 'owner'];
-const CLINIC_OWNERS = ['owner_klinik', 'owner_petcare', 'owner'];
+const ALL_OWNERS = ['owner_klinik', 'owner_petshop', 'owner_petcare'];
+const CLINIC_OWNERS = ['owner_klinik', 'owner_petcare'];
 const PETSHOP_OWNERS = ['owner_petshop', 'owner_petcare'];
 
 export const MODULE_PERMISSIONS: Record<NavModule, string[]> = {
@@ -103,14 +103,14 @@ export const MODULE_PERMISSIONS: Record<NavModule, string[]> = {
   dashboard: ['*'],
   masterData: ['*'],
 
-  // Layanan Klinis & Umum
+  // Layanan Klinis & Umum (Khusus Klinik & PetCare All-in-One - HIDDEN for PetShop)
   booking: [...CLINIC_OWNERS, 'admin', 'dokter', 'perawat', 'resepsionis', 'superadmin'],
   grooming: ['owner_petcare', 'admin', 'groomer', 'superadmin'],
   petHotel: ['owner_petcare', 'admin', 'groomer', 'kasir', 'superadmin'],
   telehealth: [...CLINIC_OWNERS, 'admin', 'dokter', 'superadmin'],
   ambulance: [...CLINIC_OWNERS, 'admin', 'dokter', 'perawat', 'superadmin'],
 
-  // Medis & Farmasi (Khusus Klinik & PetCare All-in-One)
+  // Medis & Farmasi (Khusus Klinik & PetCare All-in-One - HIDDEN for PetShop)
   clinic: [...CLINIC_OWNERS, 'admin', 'dokter', 'perawat', 'superadmin'],
   emr: [...CLINIC_OWNERS, 'admin', 'dokter', 'perawat', 'superadmin'],
   vaccination: [...CLINIC_OWNERS, 'admin', 'dokter', 'perawat', 'superadmin'],
@@ -119,8 +119,8 @@ export const MODULE_PERMISSIONS: Record<NavModule, string[]> = {
   eForms: [...CLINIC_OWNERS, 'admin', 'dokter', 'superadmin'],
   patientGallery: [...CLINIC_OWNERS, 'admin', 'dokter', 'perawat', 'groomer', 'superadmin'],
 
-  // Penjualan & Logistik
-  petShop: [...PETSHOP_OWNERS, 'admin', 'kasir', 'superadmin'], // Hiden for Owner Klinik
+  // Penjualan & Logistik (PetShop POS is HIDDEN for Owner Klinik)
+  petShop: [...PETSHOP_OWNERS, 'admin', 'kasir', 'superadmin'],
   inventory: [...ALL_OWNERS, 'admin', 'kasir', 'dokter', 'superadmin'],
   purchasing: [...ALL_OWNERS, 'admin', 'superadmin'],
   billing: [...ALL_OWNERS, 'admin', 'kasir', 'superadmin'],
@@ -217,12 +217,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   setIsCollapsed,
 }) => {
-  const { user, switchRole, logout } = useAuth();
+  const { user, switchRole, logout, activeOwnership } = useAuth();
   const { branches, activeBranchId, setActiveBranchId } = useData();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [showRoleSelector, setShowRoleSelector] = useState<boolean>(false);
 
-  const userRole = user?.role || 'owner_klinik';
+  // Derive effective role from user role or ownership
+  let userRole: UserRole = 'owner_klinik';
+  if (user?.role && user.role !== 'owner') {
+    userRole = user.role;
+  }
+  if (user?.ownershipType && (user.ownershipType === 'owner_klinik' || user.ownershipType === 'owner_petshop' || user.ownershipType === 'owner_petcare')) {
+    userRole = user.ownershipType as UserRole;
+  } else if (activeOwnership && (activeOwnership === 'owner_klinik' || activeOwnership === 'owner_petshop' || activeOwnership === 'owner_petcare') && (user?.role?.startsWith('owner') || user?.role === 'owner' || !user)) {
+    userRole = activeOwnership as UserRole;
+  }
+
   const roleInfo = getRoleInfo(userRole);
 
   const canAccess = (allowedRoles: string[]) => {

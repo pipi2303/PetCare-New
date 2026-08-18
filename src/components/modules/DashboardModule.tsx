@@ -49,6 +49,7 @@ import { DoseCalculator } from '../common/DoseCalculator';
 import { CctvMonitor } from '../common/CctvMonitor';
 import { QueueDisplay } from '../common/QueueDisplay';
 import { PredictiveInventoryWidget } from '../common/PredictiveInventoryWidget';
+import { PredictiveTrafficGrowthWidget } from '../common/PredictiveTrafficGrowthWidget';
 import { SystemNotificationHeader } from '../common/SystemNotificationHeader';
 import { RecentPatientHistoryCard } from '../common/RecentPatientHistoryCard';
 import { SmartPatientCheckInCard } from '../common/SmartPatientCheckInCard';
@@ -1150,6 +1151,11 @@ export const DashboardModule: React.FC<{ setActiveModule: (m: any) => void }> = 
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* PREDICTIVE TRAFFIC & BUSY HOURS GROWTH FORECASTER WIDGET (RECHARTS)       */}
+      {/* ========================================================================= */}
+      <PredictiveTrafficGrowthWidget setActiveModule={setActiveModule} />
 
       {/* ========================================================================= */}
       {/* PREDICTIVE INVENTORY WIDGET: 7-DAY CRITICAL SUPPLIES RUNOUT ALERT         */}

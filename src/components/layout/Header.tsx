@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useToast } from '../../context/ToastContext';
 import { NavModule } from './Sidebar';
 import { getRoleInfo } from '../../utils/roleUtils';
 import { UserRole } from '../../types';
@@ -21,7 +22,10 @@ import {
   KeyRound,
   Zap,
   Building2,
-  MapPin
+  MapPin,
+  ShoppingBag,
+  Stethoscope,
+  Sparkle
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -73,14 +77,31 @@ export const Header: React.FC<HeaderProps> = ({
   openPublicBooking,
   onOpenAI,
 }) => {
-  const { user, switchRole } = useAuth();
-  const { notifications = [], markNotificationRead } = useData();
+  const { user, switchRole, logout, openLoginScreen, activeBranchId, activeOwnership } = useAuth();
+  const { notifications = [], markNotificationRead, branches = [] } = useData();
+  const { addToast } = useToast();
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
-  const userRole = user?.role || 'owner_klinik';
+  // Derive effective role from user role or active ownership
+  let userRole: UserRole = 'owner_klinik';
+  if (user?.role && user.role !== 'owner') {
+    userRole = user.role;
+  }
+  if (user?.ownershipType && (user.ownershipType === 'owner_klinik' || user.ownershipType === 'owner_petshop' || user.ownershipType === 'owner_petcare')) {
+    userRole = user.ownershipType as UserRole;
+  } else if (activeOwnership && (activeOwnership === 'owner_klinik' || activeOwnership === 'owner_petshop' || activeOwnership === 'owner_petcare') && (user?.role?.startsWith('owner') || user?.role === 'owner' || !user)) {
+    userRole = activeOwnership as UserRole;
+  }
+
   const roleInfo = getRoleInfo(userRole);
   const unreadCount = (notifications || []).filter((n) => !n.isRead).length;
+
+  const currentBranch = branches.find((b) => b.id === activeBranchId) || {
+    id: 'b1',
+    name: 'Klinik Utama (Pusat)',
+    code: 'BR-01'
+  };
 
   const todayFormatted = new Date().toLocaleDateString('id-ID', {
     weekday: 'long',
@@ -92,6 +113,16 @@ export const Header: React.FC<HeaderProps> = ({
   const handleRoleSelect = (role: UserRole) => {
     switchRole(role);
     setShowUserDropdown(false);
+    
+    if (role === 'owner_petshop') {
+      addToast('Profil aktif beralih ke: Owner Petshop (Toko Retail & POS)', 'success');
+    } else if (role === 'owner_klinik') {
+      addToast('Profil aktif beralih ke: Owner Klinik (Medis & RS Hewan)', 'success');
+    } else if (role === 'owner_petcare') {
+      addToast('Profil aktif beralih ke: Owner PetCare (All-in-One Ecosystem)', 'success');
+    } else {
+      addToast(`Beralih ke peran: ${role.replace('_', ' ')}`, 'info');
+    }
   };
 
   useEffect(() => {
@@ -127,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center gap-3">
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-2 rounded-xl text-[#D9B98A] hover:bg-[#101A2C] hover:text-[#FFFDF9] transition-colors"
+          className="p-2 rounded-xl text-[#D9B98A] hover:bg-[#101A2C] hover:text-[#FFFDF9] transition-colors cursor-pointer"
           title="Toggle Sidebar"
         >
           <Menu className="w-5 h-5" />
@@ -149,7 +180,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Global Search Button */}
         <button
           onClick={openGlobalSearch}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#101A2C] text-[#EDE6D6] hover:bg-[#101A2C]/80 hover:border-[#D9B98A] text-xs font-medium border border-[#B8905A]/30 transition-all shadow-2xs group"
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#101A2C] text-[#EDE6D6] hover:bg-[#101A2C]/80 hover:border-[#D9B98A] text-xs font-medium border border-[#B8905A]/30 transition-all shadow-2xs group cursor-pointer"
         >
           <Search className="w-3.5 h-3.5 text-[#D9B98A] group-hover:scale-110 transition-transform" />
           <span className="hidden md:inline text-[#EDE6D6]/70">Cari pasien, obat, barang...</span>
@@ -176,6 +207,15 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
         )}
+
+        {/* Branch Quick Indicator Badge */}
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#101A2C] border border-[#B8905A]/30 text-xs text-[#D9B98A]">
+          <Store className="w-3.5 h-3.5 text-[#D9B98A]" />
+          <span className="font-semibold text-[#FFFDF9] truncate max-w-[150px]">{currentBranch.name}</span>
+          <span className="px-1.5 py-0.2 rounded bg-[#B8905A]/20 text-[9px] font-mono font-bold text-[#D9B98A]">
+            {currentBranch.code}
+          </span>
+        </div>
 
         {/* Public Booking Portal button */}
         <div className="relative group">
@@ -250,25 +290,93 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* User Role Profile Switcher Badge */}
+        {/* Quick Owner Switch Pills (Desktop) */}
+        <div className="hidden 2xl:flex items-center gap-1 px-1.5 py-1 rounded-xl bg-[#101A2C]/90 border border-[#B8905A]/30">
+          <button
+            onClick={() => handleRoleSelect('owner_klinik')}
+            title="Beralih ke Profil Owner Klinik"
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              userRole === 'owner_klinik' || userRole === 'owner'
+                ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50 shadow-xs'
+                : 'text-[#EDE6D6]/70 hover:text-[#FFFDF9] hover:bg-[#1B2A45]'
+            }`}
+          >
+            <span>🏥</span>
+            <span>Klinik</span>
+          </button>
+          <button
+            onClick={() => handleRoleSelect('owner_petshop')}
+            title="Beralih ke Profil Owner Petshop (Retail & POS)"
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              userRole === 'owner_petshop'
+                ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 shadow-xs'
+                : 'text-[#EDE6D6]/70 hover:text-[#FFFDF9] hover:bg-[#1B2A45]'
+            }`}
+          >
+            <span>🛒</span>
+            <span>PetShop</span>
+          </button>
+          <button
+            onClick={() => handleRoleSelect('owner_petcare')}
+            title="Beralih ke Profil Owner PetCare (All-in-One)"
+            className={`px-2 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
+              userRole === 'owner_petcare'
+                ? 'bg-[#D9B98A]/30 text-[#D9B98A] border border-[#B8905A]/60 shadow-xs'
+                : 'text-[#EDE6D6]/70 hover:text-[#FFFDF9] hover:bg-[#1B2A45]'
+            }`}
+          >
+            <span>🐾</span>
+            <span>PetCare</span>
+          </button>
+        </div>
+
+        {/* User Role Profile Switcher Badge (Section Kanan Atas) */}
         <div className="relative" data-dropdown-container="true">
           <button
             onClick={() => {
               setShowUserDropdown(!showUserDropdown);
               setShowNotifDropdown(false);
             }}
-            className="flex items-center gap-2 pl-2 border-l border-[#B8905A]/30 hover:opacity-95 transition-opacity text-left cursor-pointer group"
-            title="Klik untuk ganti profil kepemilikan usaha"
+            className={`flex items-center gap-2 pl-2.5 pr-2 py-1 rounded-xl border transition-all text-left cursor-pointer group ${
+              userRole === 'owner_petshop'
+                ? 'border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20'
+                : userRole === 'owner_klinik' || userRole === 'owner'
+                ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20'
+                : userRole === 'owner_petcare'
+                ? 'border-[#B8905A]/50 bg-[#D9B98A]/10 hover:bg-[#D9B98A]/20'
+                : 'border-[#B8905A]/30 bg-[#101A2C] hover:bg-[#101A2C]/80'
+            }`}
+            title="Klik untuk ganti profil kepemilikan usaha atau peran staff"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#D9B98A] text-[#101A2C] font-bold text-xs flex items-center justify-center shadow-xs shrink-0 group-hover:ring-2 ring-[#D9B98A]/50">
+            <div
+              className={`w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform ${
+                userRole === 'owner_petshop'
+                  ? 'bg-amber-500 text-slate-950 font-black'
+                  : userRole === 'owner_klinik' || userRole === 'owner'
+                  ? 'bg-emerald-500 text-slate-950 font-black'
+                  : userRole === 'owner_petcare'
+                  ? 'bg-[#D9B98A] text-[#101A2C] font-black'
+                  : 'bg-[#D9B98A] text-[#101A2C]'
+              }`}
+            >
               {roleInfo.iconText}
             </div>
             <div className="hidden md:block text-left">
               <div className="flex items-center gap-1">
                 <p className="text-xs font-bold text-[#FFFDF9] leading-none">{roleInfo.label}</p>
-                <ChevronDown className="w-3 h-3 text-[#D9B98A]" />
+                <ChevronDown className="w-3 h-3 text-[#D9B98A] group-hover:translate-y-0.5 transition-transform" />
               </div>
-              <p className="text-[10px] text-[#D9B98A] font-semibold mt-0.5 truncate max-w-[140px]">
+              <p
+                className={`text-[10px] font-semibold mt-0.5 truncate max-w-[140px] ${
+                  userRole === 'owner_petshop'
+                    ? 'text-amber-300'
+                    : userRole === 'owner_klinik' || userRole === 'owner'
+                    ? 'text-emerald-300'
+                    : userRole === 'owner_petcare'
+                    ? 'text-[#D9B98A]'
+                    : 'text-[#EDE6D6]/80'
+                }`}
+              >
                 {roleInfo.businessType}
               </p>
             </div>
@@ -276,98 +384,137 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Role Profile Dropdown */}
           {showUserDropdown && (
-            <div className="absolute right-0 mt-2 w-80 bg-[#1B2A45] border border-[#B8905A] rounded-xl shadow-2xl p-3 z-50 text-[#EDE6D6] space-y-3 animate-in fade-in zoom-in-95 duration-150">
-              <div className="flex items-center justify-between pb-2 border-b border-[#B8905A]/30">
-                <div>
-                  <h4 className="text-xs font-bold text-[#FFFDF9] flex items-center gap-1.5">
-                    <UserCheck className="w-4 h-4 text-[#D9B98A]" /> Profil Kepemilikan Usaha
-                  </h4>
-                  <p className="text-[10px] text-[#D9B98A]/80">Sesuaikan menu & akses sidebar</p>
+            <div className="absolute right-0 mt-2 w-84 bg-[#1B2A45] border border-[#B8905A] rounded-2xl shadow-2xl p-3.5 z-50 text-[#EDE6D6] space-y-3 animate-in fade-in zoom-in-95 duration-150">
+              {/* Active User Header */}
+              <div className="flex items-center justify-between pb-2.5 border-b border-[#B8905A]/30">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-base shadow-sm shrink-0 ${
+                      userRole === 'owner_petshop'
+                        ? 'bg-amber-500 text-slate-950 font-bold'
+                        : userRole === 'owner_klinik' || userRole === 'owner'
+                        ? 'bg-emerald-500 text-slate-950 font-bold'
+                        : userRole === 'owner_petcare'
+                        ? 'bg-[#D9B98A] text-[#101A2C] font-bold'
+                        : 'bg-[#D9B98A] text-[#101A2C] font-bold'
+                    }`}
+                  >
+                    {roleInfo.iconText}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-[#FFFDF9] truncate">
+                      {user?.name || (userRole === 'owner_petshop' ? 'Rendra Pratama (Owner Petshop)' : 'drh. Hendrawan')}
+                    </h4>
+                    <p className="text-[10px] text-[#D9B98A] truncate">
+                      {user?.email || (userRole === 'owner_petshop' ? 'owner.petshop@petcare.id' : 'owner.klinik@petcare.id')}
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowUserDropdown(false)}
-                  className="text-xs text-[#D9B98A] hover:text-white"
+                  className="p-1 rounded-lg hover:bg-[#101A2C] text-[#D9B98A] hover:text-white cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
 
-              {/* Owner Options */}
-              <div className="space-y-1.5">
-                {/* 1. Owner Klinik */}
-                <button
-                  onClick={() => handleRoleSelect('owner_klinik')}
-                  className={`w-full text-left p-2 rounded-lg border transition-all flex items-start gap-2.5 ${
-                    userRole === 'owner_klinik' || userRole === 'owner'
-                      ? 'bg-[#D9B98A]/20 border-[#D9B98A] ring-1 ring-[#D9B98A]'
-                      : 'bg-[#101A2C]/60 border-[#B8905A]/30 hover:bg-[#101A2C] hover:border-[#D9B98A]/50'
-                  }`}
-                >
-                  <span className="text-xl">🏥</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#FFFDF9]">Owner Klinik</span>
-                      {(userRole === 'owner_klinik' || userRole === 'owner') && (
-                        <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-bold">
-                          Aktif
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-[#D9B98A]">Praktek Medis & Rumah Sakit Vet</p>
-                    <p className="text-[9px] text-[#EDE6D6]/60 mt-0.5">
-                      Fokus: Medis, EMR, Farmasi, Rawat Inap, Billing
-                    </p>
-                  </div>
-                </button>
+              {/* Title Section */}
+              <div>
+                <p className="text-[10px] font-bold text-[#D9B98A] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5" /> Pilih Profil Kepemilikan (Owner)
+                </p>
+              </div>
 
-                {/* 2. Owner Petshop */}
+              {/* 3 Main Owner Options */}
+              <div className="space-y-2">
+                {/* 1. Owner Petshop (Highlight) */}
                 <button
                   onClick={() => handleRoleSelect('owner_petshop')}
-                  className={`w-full text-left p-2 rounded-lg border transition-all flex items-start gap-2.5 ${
+                  className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 cursor-pointer ${
                     userRole === 'owner_petshop'
-                      ? 'bg-[#D9B98A]/20 border-[#D9B98A] ring-1 ring-[#D9B98A]'
-                      : 'bg-[#101A2C]/60 border-[#B8905A]/30 hover:bg-[#101A2C] hover:border-[#D9B98A]/50'
+                      ? 'bg-amber-500/20 border-amber-500 ring-1 ring-amber-500 shadow-sm'
+                      : 'bg-[#101A2C]/60 border-[#B8905A]/30 hover:bg-[#101A2C] hover:border-amber-500/50'
                   }`}
                 >
-                  <span className="text-xl">🛒</span>
+                  <span className="text-2xl mt-0.5">🛒</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[#FFFDF9]">Owner Petshop</span>
-                      {userRole === 'owner_petshop' && (
-                        <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/20 text-amber-300 rounded font-bold">
-                          Aktif
+                      {userRole === 'owner_petshop' ? (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-amber-500/25 text-amber-300 rounded-md font-bold flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5" /> Aktif
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-[#101A2C] text-[#D9B98A] rounded-md font-medium border border-[#B8905A]/30">
+                          Pilih
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-[#D9B98A]">Toko Retail Pet Shop & Pakan</p>
-                    <p className="text-[9px] text-[#EDE6D6]/60 mt-0.5">
-                      Fokus: Kasir POS, Barcode, Stok Barang, Purchasing
-                    </p>
+                    <p className="text-[10px] text-amber-300 font-semibold">Toko Retail Pet Shop & Pakan</p>
+                    <div className="mt-1 text-[9px] space-y-0.5">
+                      <p className="text-emerald-300/90 font-medium">✓ Kasir POS, Barcode, Stok & PO Supplier</p>
+                      <p className="text-rose-300/80">✗ Modul Medis & Salon disembunyikan</p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* 2. Owner Klinik */}
+                <button
+                  onClick={() => handleRoleSelect('owner_klinik')}
+                  className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 cursor-pointer ${
+                    userRole === 'owner_klinik' || userRole === 'owner'
+                      ? 'bg-emerald-500/20 border-emerald-500 ring-1 ring-emerald-500 shadow-sm'
+                      : 'bg-[#101A2C]/60 border-[#B8905A]/30 hover:bg-[#101A2C] hover:border-emerald-500/50'
+                  }`}
+                >
+                  <span className="text-2xl mt-0.5">🏥</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-[#FFFDF9]">Owner Klinik</span>
+                      {(userRole === 'owner_klinik' || userRole === 'owner') ? (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/25 text-emerald-300 rounded-md font-bold flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5" /> Aktif
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-[#101A2C] text-[#D9B98A] rounded-md font-medium border border-[#B8905A]/30">
+                          Pilih
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-emerald-300 font-semibold">Praktek Medis & RS Hewan Vet</p>
+                    <div className="mt-1 text-[9px] space-y-0.5">
+                      <p className="text-emerald-300/90 font-medium">✓ EMR, CPPT, Apotek, Vaksin & Lab</p>
+                      <p className="text-rose-300/80">✗ Toko POS, Grooming & Hotel disembunyikan</p>
+                    </div>
                   </div>
                 </button>
 
                 {/* 3. Owner PetCare */}
                 <button
                   onClick={() => handleRoleSelect('owner_petcare')}
-                  className={`w-full text-left p-2 rounded-lg border transition-all flex items-start gap-2.5 ${
+                  className={`w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 cursor-pointer ${
                     userRole === 'owner_petcare'
-                      ? 'bg-[#D9B98A]/20 border-[#D9B98A] ring-1 ring-[#D9B98A]'
+                      ? 'bg-[#D9B98A]/25 border-[#D9B98A] ring-1 ring-[#D9B98A] shadow-sm'
                       : 'bg-[#101A2C]/60 border-[#B8905A]/30 hover:bg-[#101A2C] hover:border-[#D9B98A]/50'
                   }`}
                 >
-                  <span className="text-xl">🐾</span>
+                  <span className="text-2xl mt-0.5">🐾</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#FFFDF9]">Owner PetCare</span>
-                      {userRole === 'owner_petcare' && (
-                        <span className="text-[9px] px-1.5 py-0.2 bg-[#D9B98A]/30 text-[#D9B98A] rounded font-bold">
-                          Aktif
+                      <span className="text-xs font-bold text-[#FFFDF9]">Owner PetCare (All-in-One)</span>
+                      {userRole === 'owner_petcare' ? (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-[#D9B98A]/30 text-[#D9B98A] rounded-md font-bold flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5" /> Aktif
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-[#101A2C] text-[#D9B98A] rounded-md font-medium border border-[#B8905A]/30">
+                          Pilih
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-[#D9B98A]">One-Stop Solution (All-in-One)</p>
-                    <p className="text-[9px] text-emerald-300/80 mt-0.5">
-                      Akses Penuh: Klinik + Petshop + Grooming + Hotel
+                    <p className="text-[10px] text-[#D9B98A] font-semibold">One-Stop Solution Ecosystem</p>
+                    <p className="text-[9px] text-emerald-300 font-medium mt-1">
+                      🌟 Akses Penuh ke Seluruh 28 Modul Operasional
                     </p>
                   </div>
                 </button>
@@ -376,34 +523,75 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Other Roles Quick Switch */}
               <div className="pt-2 border-t border-[#B8905A]/20">
                 <p className="text-[9px] font-bold text-[#D9B98A]/80 uppercase tracking-wider mb-1.5">
-                  Peran Staff Lainnya:
+                  Peran Operasional Staff:
                 </p>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={() => handleRoleSelect('dokter')}
-                    className="px-2 py-1 bg-[#101A2C] hover:bg-[#101A2C]/80 border border-[#B8905A]/30 rounded text-[11px] font-semibold text-left text-[#EDE6D6] flex items-center gap-1.5"
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold text-left border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      userRole === 'dokter'
+                        ? 'bg-blue-500/20 border-blue-400 text-blue-200'
+                        : 'bg-[#101A2C] hover:bg-[#101A2C]/80 border-[#B8905A]/30 text-[#EDE6D6]'
+                    }`}
                   >
-                    <span>🩺</span> Dokter
+                    <span>🩺</span> Dokter Hewan
                   </button>
                   <button
                     onClick={() => handleRoleSelect('kasir')}
-                    className="px-2 py-1 bg-[#101A2C] hover:bg-[#101A2C]/80 border border-[#B8905A]/30 rounded text-[11px] font-semibold text-left text-[#EDE6D6] flex items-center gap-1.5"
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold text-left border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      userRole === 'kasir'
+                        ? 'bg-purple-500/20 border-purple-400 text-purple-200'
+                        : 'bg-[#101A2C] hover:bg-[#101A2C]/80 border-[#B8905A]/30 text-[#EDE6D6]'
+                    }`}
                   >
-                    <span>💳</span> Kasir
+                    <span>💳</span> Kasir & POS
                   </button>
                   <button
                     onClick={() => handleRoleSelect('groomer')}
-                    className="px-2 py-1 bg-[#101A2C] hover:bg-[#101A2C]/80 border border-[#B8905A]/30 rounded text-[11px] font-semibold text-left text-[#EDE6D6] flex items-center gap-1.5"
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold text-left border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      userRole === 'groomer'
+                        ? 'bg-pink-500/20 border-pink-400 text-pink-200'
+                        : 'bg-[#101A2C] hover:bg-[#101A2C]/80 border-[#B8905A]/30 text-[#EDE6D6]'
+                    }`}
                   >
                     <span>✂️</span> Groomer
                   </button>
                   <button
                     onClick={() => handleRoleSelect('admin')}
-                    className="px-2 py-1 bg-[#101A2C] hover:bg-[#101A2C]/80 border border-[#B8905A]/30 rounded text-[11px] font-semibold text-left text-[#EDE6D6] flex items-center gap-1.5"
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold text-left border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                      userRole === 'admin'
+                        ? 'bg-sky-500/20 border-sky-400 text-sky-200'
+                        : 'bg-[#101A2C] hover:bg-[#101A2C]/80 border-[#B8905A]/30 text-[#EDE6D6]'
+                    }`}
                   >
-                    <span>🛠️</span> Admin
+                    <span>🛠️</span> Admin Sistem
                   </button>
                 </div>
+              </div>
+
+              {/* Portal Login, Switch Shift & Logout Actions */}
+              <div className="pt-2.5 border-t border-[#B8905A]/20 space-y-1.5">
+                <button
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    openLoginScreen();
+                  }}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#B8905A] hover:bg-[#D9B98A] text-[#101A2C] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Buka Layar Login & Otorisasi</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    logout();
+                  }}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-[#101A2C] hover:bg-rose-950/40 text-rose-300 hover:text-rose-200 border border-rose-500/30 font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Keluar dari Akun (Logout)</span>
+                </button>
               </div>
             </div>
           )}

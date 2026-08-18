@@ -11,6 +11,7 @@ interface Toast {
 
 interface ToastContextType {
   showToast: (type: ToastType, message: string) => void;
+  addToast: (message: string, type?: ToastType) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -27,12 +28,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 4500);
   };
 
+  const addToast = (message: string, type: ToastType = 'info') => {
+    showToast(type, message);
+  };
+
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, addToast }}>
       {children}
       {/* Toast Overlay */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">

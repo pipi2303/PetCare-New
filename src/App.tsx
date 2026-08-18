@@ -33,7 +33,9 @@ import { AuditLogModule } from './components/modules/AuditLogModule';
 import { BranchesModule } from './components/modules/BranchesModule';
 import { NotificationsModule } from './components/modules/NotificationsModule';
 import { TenantAdminModule } from './components/modules/TenantAdminModule';
+import { LoginScreen } from './components/auth/LoginScreen';
 import { getRoleInfo } from './utils/roleUtils';
+import { UserRole } from './types';
 import {
   CalendarCheck,
   Stethoscope,
@@ -109,16 +111,37 @@ const MainAppContent: React.FC = () => {
   const [showDoseCalcModal, setShowDoseCalcModal] = useState(false);
   const [showCctvModal, setShowCctvModal] = useState(false);
 
-  const { user } = useAuth();
+  const { user, isLoginScreenOpen, closeLoginScreen, activeOwnership } = useAuth();
   const { addToast } = useToast();
 
-  const userRole = user?.role || 'owner_klinik';
+  // Derive effective role from user role or active ownership
+  let userRole: UserRole = 'owner_klinik';
+  if (user?.role && user.role !== 'owner') {
+    userRole = user.role;
+  }
+  if (user?.ownershipType && (user.ownershipType === 'owner_klinik' || user.ownershipType === 'owner_petshop' || user.ownershipType === 'owner_petcare')) {
+    userRole = user.ownershipType as UserRole;
+  } else if (activeOwnership && (activeOwnership === 'owner_klinik' || activeOwnership === 'owner_petshop' || activeOwnership === 'owner_petcare') && (user?.role?.startsWith('owner') || user?.role === 'owner' || !user)) {
+    userRole = activeOwnership as UserRole;
+  }
+
   const roleInfo = getRoleInfo(userRole);
 
   // Check if current user is allowed to access the active module
   const isModuleAllowed =
     MODULE_PERMISSIONS[activeModule]?.includes('*') ||
     MODULE_PERMISSIONS[activeModule]?.includes(userRole);
+
+  // Auto-redirect if active module is not permitted for current role
+  useEffect(() => {
+    if (!isModuleAllowed && user && !isLoginScreenOpen) {
+      if (userRole === 'owner_petshop') {
+        setActiveModule('petShop');
+      } else {
+        setActiveModule('dashboard');
+      }
+    }
+  }, [userRole, activeModule, isModuleAllowed, user, isLoginScreenOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -134,6 +157,10 @@ const MainAppContent: React.FC = () => {
   const openPublicBooking = () => {
     setShowQueueDisplay(true);
   };
+
+  if (!user || isLoginScreenOpen) {
+    return <LoginScreen onSuccessfulLogin={() => closeLoginScreen()} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#F6F1E6] text-[#22242B] font-sans antialiased selection:bg-[#1B2A45] selection:text-[#FFFDF9]">

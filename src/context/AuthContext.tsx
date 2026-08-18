@@ -122,8 +122,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (found) {
       const branchIdToUse = options?.branchId || found.branchId || activeBranchId || 'b1';
       const ownershipToUse = options?.ownershipType || found.ownershipType || activeOwnership || 'owner_klinik';
+      
+      // If logging in as an owner or ownership is explicitly selected, synchronize role
+      let roleToUse = found.role;
+      if (ownershipToUse && (ownershipToUse === 'owner_klinik' || ownershipToUse === 'owner_petshop' || ownershipToUse === 'owner_petcare')) {
+        if (found.role.startsWith('owner') || found.role === 'owner') {
+          roleToUse = ownershipToUse as UserRole;
+        }
+      }
+
       const loggedUser: User = {
         ...found,
+        role: roleToUse,
         branchId: branchIdToUse,
         branchName: options?.branchName || found.branchName,
         ownershipType: ownershipToUse
@@ -196,8 +206,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginAsUser = (targetUser: User, options?: LoginOptions) => {
     const branchIdToUse = options?.branchId || targetUser.branchId || activeBranchId || 'b1';
     const ownershipToUse = options?.ownershipType || targetUser.ownershipType || activeOwnership || targetUser.role;
+    
+    let roleToUse = targetUser.role;
+    if (ownershipToUse && (ownershipToUse === 'owner_klinik' || ownershipToUse === 'owner_petshop' || ownershipToUse === 'owner_petcare')) {
+      if (targetUser.role.startsWith('owner') || targetUser.role === 'owner') {
+        roleToUse = ownershipToUse as UserRole;
+      }
+    }
+
     const loggedUser: User = {
       ...targetUser,
+      role: roleToUse,
       branchId: branchIdToUse,
       branchName: options?.branchName || targetUser.branchName,
       ownershipType: ownershipToUse
@@ -211,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     recordSecurityLog(
       'Login',
       targetUser.name,
-      `Otentikasi cepat profil: ${targetUser.name} (${targetUser.role}) - Cabang: ${branchIdToUse}`,
+      `Otentikasi cepat profil: ${targetUser.name} (${roleToUse}) - Cabang: ${branchIdToUse} - Kepemilikan: ${ownershipToUse}`,
       loggedUser,
       'Info',
       options?.branchName || targetUser.branchName
@@ -228,11 +247,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchRole = (role: UserRole) => {
     const found = INITIAL_USERS.find((u) => u.role === role);
     if (found) {
-      loginAsUser(found);
+      loginAsUser(found, { ownershipType: role.startsWith('owner_') ? role : found.ownershipType });
       recordSecurityLog('Edit', 'Peran Otorisasi', `Mengalihkan profil aktif ke pengguna dengan peran: ${role.replace('_', ' ')} (${found.name})`, found, 'Warning');
     } else if (user) {
-      const updated = { ...user, role };
+      const updatedOwnership = role.startsWith('owner_') ? role : user.ownershipType;
+      const updated: User = { ...user, role, ownershipType: updatedOwnership };
       setUser(updated);
+      if (role.startsWith('owner_')) {
+        setActiveOwnership(role);
+      }
       recordSecurityLog('Edit', 'Peran Otorisasi', `Mengubah hak akses aktif pengguna ${user.name} menjadi: ${role.replace('_', ' ')}`, updated, 'Warning');
     }
   };
