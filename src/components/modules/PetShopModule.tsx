@@ -34,6 +34,9 @@ import {
   BarChart3
 } from 'lucide-react';
 import { PetShopCategoryAnalytics } from '../petshop/PetShopCategoryAnalytics';
+import { CashDrawerSettlementModal } from '../petshop/CashDrawerSettlementModal';
+import { BarcodeCameraScanner } from '../petshop/BarcodeCameraScanner';
+import { Camera, Coins } from 'lucide-react';
 
 interface CartItem {
   id: string;
@@ -76,6 +79,10 @@ export const PetShopModule: React.FC = () => {
   const [newCustName, setNewCustName] = useState<string>('');
   const [newCustPhone, setNewCustPhone] = useState<string>('');
   const [newCustAddress, setNewCustAddress] = useState<string>('');
+
+  // POS Cash Settlement & Barcode Scanner Modal States
+  const [showSettlementModal, setShowSettlementModal] = useState<boolean>(false);
+  const [showBarcodeScannerModal, setShowBarcodeScannerModal] = useState<boolean>(false);
 
   // Draft state with local storage auto-save
   const defaultDraft: PetShopDraft = {
@@ -463,20 +470,43 @@ export const PetShopModule: React.FC = () => {
               Chart
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setShowSettlementModal(true)}
+            className="flex-1 sm:flex-none px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 cursor-pointer shadow-2xs"
+            title="Buka Formulir Rekonsiliasi & Tutup Shift Kasir (End of Shift)"
+          >
+            <Coins className="w-4 h-4 text-emerald-700" />
+            <span>Tutup Shift Kasir</span>
+          </button>
         </div>
 
         {/* Quick Cart Status & Actions in POS view */}
-        {currentView === 'pos' && draft.cart.length > 0 && (
+        {currentView === 'pos' && (
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <span className="text-xs text-[#6B6656]">
-              {draft.cart.length} barang di keranjang
-            </span>
             <button
-              onClick={discardDraft}
-              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+              type="button"
+              onClick={() => setShowBarcodeScannerModal(true)}
+              className="px-3 py-1.5 bg-gradient-to-r from-[#1B2A45] to-[#101A2C] hover:brightness-110 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer"
             >
-              <RotateCcw className="w-3 h-3" /> Kosongkan Keranjang
+              <Camera className="w-3.5 h-3.5 text-[#D9B98A]" />
+              <span>Scan Barcode Kamera</span>
             </button>
+
+            {draft.cart.length > 0 && (
+              <>
+                <span className="text-xs text-[#6B6656]">
+                  {draft.cart.length} item
+                </span>
+                <button
+                  onClick={discardDraft}
+                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" /> Kosongkan
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1258,6 +1288,19 @@ export const PetShopModule: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Cash Drawer Settlement / End of Shift Modal */}
+      {showSettlementModal && (
+        <CashDrawerSettlementModal onClose={() => setShowSettlementModal(false)} />
+      )}
+
+      {/* Live Camera Barcode Scanner Modal */}
+      {showBarcodeScannerModal && (
+        <BarcodeCameraScanner
+          onClose={() => setShowBarcodeScannerModal(false)}
+          onScanItem={(scannedItem) => handleAddToCart(scannedItem)}
+        />
       )}
     </div>
   );

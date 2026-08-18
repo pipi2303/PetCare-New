@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
 import { SystemNotificationHeader } from '../common/SystemNotificationHeader';
+import { DailyPetDiaryModal } from '../common/DailyPetDiaryModal';
 import {
   Hotel,
   CheckCircle2,
@@ -11,7 +12,9 @@ import {
   Sparkles,
   UserCheck,
   AlertCircle,
-  Plus
+  Plus,
+  Camera,
+  Share2
 } from 'lucide-react';
 
 export const PetHotelCageModule: React.FC = () => {
@@ -19,6 +22,8 @@ export const PetHotelCageModule: React.FC = () => {
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'grid' | 'treatment'>('grid');
+  const [showDiaryModal, setShowDiaryModal] = useState<boolean>(false);
+  const [diaryPetId, setDiaryPetId] = useState<string>('');
 
   // Cage grid state
   const [cages, setCages] = useState([
@@ -116,6 +121,18 @@ export const PetHotelCageModule: React.FC = () => {
                         <p className="text-[10px] opacity-70 pt-1">
                           Periode: {cage.checkIn} s/d {cage.checkOut}
                         </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const matched = pets.find((p) => p.name.toLowerCase() === cage.petName.toLowerCase());
+                            setDiaryPetId(matched?.id || pets[0]?.id || '');
+                            setShowDiaryModal(true);
+                          }}
+                          className="mt-2 w-full py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-[11px] rounded-lg shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Camera className="w-3.5 h-3.5" />
+                          <span>Kirim Jurnal Foto WhatsApp</span>
+                        </button>
                       </>
                     )}
                   </div>
@@ -171,6 +188,15 @@ export const PetHotelCageModule: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Daily Pet Diary Modal */}
+      {showDiaryModal && (
+        <DailyPetDiaryModal
+          onClose={() => setShowDiaryModal(false)}
+          defaultPetId={diaryPetId}
+          defaultServiceType="Pet Hotel"
+        />
       )}
     </div>
   );

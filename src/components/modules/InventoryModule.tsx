@@ -5,6 +5,7 @@ import { AIForecastingView } from './AIForecastingView';
 import { InventoryAuditAssistant } from './InventoryAuditAssistant';
 import { StockItem } from '../../types';
 import { QuickPOModal, QuickPOLineItem } from '../common/QuickPOModal';
+import { StockMutationModal } from '../inventory/StockMutationModal';
 import {
   Package,
   AlertTriangle,
@@ -133,6 +134,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ activeModule, 
   const [fromWh, setFromWh] = useState('Gudang Utama');
   const [toWh, setToWh] = useState('Apotek');
   const [transferQty, setTransferQty] = useState(5);
+  const [showStockMutationModal, setShowStockMutationModal] = useState(false);
 
   // Add Item Modal state
   const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -373,6 +375,14 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ activeModule, 
             }`}
           >
             <ArrowRightLeft className="w-4 h-4" /> Transfer Cabang
+          </button>
+          <button
+            onClick={() => setShowStockMutationModal(true)}
+            className="px-3.5 py-2 bg-gradient-to-r from-emerald-700 to-teal-800 hover:brightness-110 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-xs cursor-pointer"
+            title="Buat Mutasi & Surat Jalan Digital Resmi Antar Cabang / Gudang"
+          >
+            <FileText className="w-4 h-4 text-emerald-300" />
+            <span>Mutasi & Surat Jalan</span>
           </button>
         </div>
       </div>
@@ -1110,6 +1120,11 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({ activeModule, 
         customNotes={quickPONotes}
         setActiveModule={setActiveModule}
       />
+
+      {/* Stock Mutation & Digital Waybill Modal */}
+      {showStockMutationModal && (
+        <StockMutationModal onClose={() => setShowStockMutationModal(false)} />
+      )}
     </div>
   );
 };

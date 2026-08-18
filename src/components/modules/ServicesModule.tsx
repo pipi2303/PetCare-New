@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import * as Types from '../../types';
 import { SystemNotificationHeader } from '../common/SystemNotificationHeader';
+import { DailyPetDiaryModal } from '../common/DailyPetDiaryModal';
 
 interface ServicesModuleProps {
   activeModule?: 'booking' | 'grooming' | 'petHotel' | 'telehealth' | 'ambulance' | string;
@@ -46,6 +47,8 @@ interface ServicesModuleProps {
 }
 
 export const ServicesModule: React.FC<ServicesModuleProps> = ({ activeModule = 'booking', setActiveModule }) => {
+  const [showDiaryModal, setShowDiaryModal] = useState<boolean>(false);
+  const [diaryPetId, setDiaryPetId] = useState<string>('');
   const {
     customers = [],
     pets = [],
@@ -657,9 +660,22 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({ activeModule = '
                             </button>
                           )}
                           {stage === 'Selesai' && (
-                            <span className="w-full py-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded block text-center">
-                              ✓ Siap Diambil Pemilik
-                            </span>
+                            <div className="space-y-1 mt-1">
+                              <span className="w-full py-1 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded block text-center border border-emerald-300">
+                                ✓ Siap Diambil Pemilik
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDiaryPetId(s.petId);
+                                  setShowDiaryModal(true);
+                                }}
+                                className="w-full py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:brightness-110 text-white font-bold text-[11px] rounded-lg shadow-2xs transition-all flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <Camera className="w-3.5 h-3.5" />
+                                <span>Kirim Foto Hasil ke WA</span>
+                              </button>
+                            </div>
                           )}
                         </div>
                       ))
@@ -1738,6 +1754,15 @@ export const ServicesModule: React.FC<ServicesModuleProps> = ({ activeModule = '
             </button>
           </div>
         </div>
+      )}
+
+      {/* Daily Pet Diary Modal */}
+      {showDiaryModal && (
+        <DailyPetDiaryModal
+          onClose={() => setShowDiaryModal(false)}
+          defaultPetId={diaryPetId}
+          defaultServiceType="Grooming & Salon"
+        />
       )}
     </div>
   );

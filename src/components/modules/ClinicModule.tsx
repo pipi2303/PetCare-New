@@ -4,6 +4,8 @@ import { useToast } from '../../context/ToastContext';
 import { DoseCalculator } from '../common/DoseCalculator';
 import { VitalSignsSummary } from '../clinic/VitalSignsSummary';
 import { SystemNotificationHeader } from '../common/SystemNotificationHeader';
+import { InformedConsentModal } from '../clinic/InformedConsentModal';
+import { PetHealthPassportModal } from '../clinic/PetHealthPassportModal';
 import { useAutoSaveDraft } from '../../hooks/useAutoSaveDraft';
 import { NavModule } from '../layout/Sidebar';
 import {
@@ -185,6 +187,10 @@ export const ClinicModule: React.FC<ClinicModuleProps> = ({ activeModule }) => {
 
   // Selected E-Form Preview Modal
   const [viewConsentItem, setViewConsentItem] = useState<any | null>(null);
+
+  // New Clinical Feature Modals
+  const [showInformedConsentModal, setShowInformedConsentModal] = useState(false);
+  const [showPetPassportModal, setShowPetPassportModal] = useState(false);
 
   // AI Medical History to SOAP Modal State
   const [showAiSoapModal, setShowAiSoapModal] = useState(false);
@@ -611,7 +617,27 @@ export const ClinicModule: React.FC<ClinicModuleProps> = ({ activeModule }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setShowInformedConsentModal(true)}
+                className="px-2.5 py-1.5 bg-[#FFFDF9] hover:bg-[#B8905A]/15 text-[#1B2A45] hover:text-[#9E7848] border border-[#E1D6BE] hover:border-[#B8905A] rounded-lg font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                title="Buka Persetujuan Tindakan Medis (Informed Consent E-Signature)"
+              >
+                <PenTool className="w-3.5 h-3.5 text-[#B8905A]" />
+                <span>Informed Consent</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowPetPassportModal(true)}
+                className="px-2.5 py-1.5 bg-[#FFFDF9] hover:bg-emerald-50 text-[#1B2A45] hover:text-emerald-800 border border-[#E1D6BE] hover:border-emerald-400 rounded-lg font-bold text-[11px] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                title="Buka Paspor Kesehatan Digital Pasien Ini"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Paspor Kesehatan</span>
+              </button>
+
               <span className="text-[11px] text-[#6B6656]">Dokter: <strong className="text-[#1B2A45]">{selectedVisit.doctorName || 'drh. Ananda'}</strong></span>
               <span
                 className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${
@@ -1653,6 +1679,23 @@ export const ClinicModule: React.FC<ClinicModuleProps> = ({ activeModule }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Informed Consent Digital E-Signature Modal */}
+      {showInformedConsentModal && (
+        <InformedConsentModal
+          onClose={() => setShowInformedConsentModal(false)}
+          defaultPetId={selectedVisit?.petId}
+          defaultDoctorName={selectedVisit?.doctorName}
+        />
+      )}
+
+      {/* Pet Health Passport Digital Modal */}
+      {showPetPassportModal && (
+        <PetHealthPassportModal
+          onClose={() => setShowPetPassportModal(false)}
+          defaultPetId={selectedVisit?.petId}
+        />
       )}
     </div>
   );

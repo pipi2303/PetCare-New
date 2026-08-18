@@ -737,3 +737,99 @@ export interface CustomerTierGroup {
   memberCount: number;
   autoUpgrade: boolean;
 }
+
+export interface InformedConsentRecord {
+  id: string;
+  consentNo: string;
+  petId: string;
+  petName: string;
+  customerId: string;
+  customerName: string;
+  customerPhone?: string;
+  customerNik?: string;
+  doctorId: string;
+  doctorName: string;
+  procedureType: 'Bedah Mayor' | 'Bedah Minor' | 'Sedasi / Anestesi' | 'Rawat Inap Intensif' | 'Tindakan Berisiko Tinggi' | 'Eutanasia Humanis';
+  diagnosis: string;
+  procedureDetails: string;
+  risksDisclosed: string;
+  estimatedCost: number;
+  signatureDataUrl: string;
+  signedAt: string;
+  witnessName: string;
+  status: 'Ditandatangani' | 'Dibatalkan';
+  securityHash?: string;
+}
+
+export interface CashDrawerSettlement {
+  id: string;
+  settlementNo: string;
+  shift: 'Pagi' | 'Siang' | 'Malam' | 'Full Day';
+  cashierName: string;
+  openedAt: string;
+  closedAt: string;
+  startingCash: number;
+  cashSales: number;
+  nonCashSales: {
+    qris: number;
+    debit: number;
+    transfer: number;
+    total: number;
+  };
+  expectedCashTotal: number;
+  actualCashCount: number;
+  variance: number;
+  cashBreakdown: Record<string, number>;
+  notes?: string;
+  status: 'Balanced' | 'Discrepancy';
+  branchName?: string;
+}
+
+export interface DailyPetJournal {
+  id: string;
+  petId: string;
+  petName: string;
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  serviceType: 'Pet Hotel' | 'Grooming' | 'Rawat Inap';
+  date: string;
+  appetite: 'Sangat Lahap' | 'Normal' | 'Kurang' | 'Tidak Mau Makan';
+  urination: 'Lancar & Normal' | 'Jarang' | 'Keruh / Tidak Lancar';
+  defecation: 'Padat Normal' | 'Lembek' | 'Diare' | 'Belum BAB';
+  mood: 'Aktif Ceria' | 'Tenang & Santai' | 'Gelisah / Takut' | 'Lemas';
+  temperatureC?: number;
+  medicationGiven?: string;
+  notes: string;
+  photoUrl?: string;
+  staffName: string;
+  createdAt: string;
+}
+
+export interface StockMutationTransfer {
+  id: string;
+  transferNo: string;
+  suratJalanNo: string;
+  sourceBranchId: string;
+  sourceBranchName: string;
+  destinationBranchId: string;
+  destinationBranchName: string;
+  date: string;
+  items: {
+    itemId: string;
+    itemName: string;
+    sku: string;
+    quantity: number;
+    unit: string;
+    batchNumber?: string;
+    expiryDate?: string;
+  }[];
+  status: 'Diajukan' | 'Dalam Pengiriman' | 'Diterima' | 'Ditolak';
+  dispatchedBy: string;
+  receivedBy?: string;
+  receivedAt?: string;
+  notes?: string;
+  driverName?: string;
+  vehiclePlate?: string;
+}
+
